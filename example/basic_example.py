@@ -1,3 +1,10 @@
+"""Toggles the state of a digital output on an EL1259.
+
+Usage: python basic_example.py <adapter>
+
+This example expects a physical slave layout according to
+_expected_slave_layout, see below.
+"""
 
 import sys
 import struct
@@ -49,7 +56,8 @@ class BasicExample:
                       0x1625,
                       0x1626,
                       0x1627]
-        rx_map_obj_bytes = struct.pack('Bx' + ''.join(['H' for i in range(len(rx_map_obj))]), len(rx_map_obj), *rx_map_obj)
+        rx_map_obj_bytes = struct.pack(
+            'Bx' + ''.join(['H' for i in range(len(rx_map_obj))]), len(rx_map_obj), *rx_map_obj)
         slave.sdo_write(0x1c12, 0, rx_map_obj_bytes, True)
 
         slave.dc_sync(1, 10000000)
@@ -61,7 +69,7 @@ class BasicExample:
             if not self._actual_wkc == self._master.expected_wkc:
                 print('incorrect wkc')
             time.sleep(0.01)
-        
+
     def run(self):
 
         self._master.open(self._ifname)
@@ -69,8 +77,8 @@ class BasicExample:
         if self._master.config_init() > 0:
 
             for i, slave in enumerate(self._master.slaves):
-                assert(slave.man==self.BECKHOFF_VENDOR_ID)
-                assert(slave.id==self._expected_slave_layout[i].product_code)
+                assert(slave.man == self.BECKHOFF_VENDOR_ID)
+                assert(slave.id == self._expected_slave_layout[i].product_code)
                 slave.config_func = self._expected_slave_layout[i].config_func
                 slave.is_lost = False
 
@@ -117,8 +125,8 @@ class BasicExample:
                 except KeyboardInterrupt:
                     # ctrl-C abort handling
                     print('stopped')
-                except Exception as e:
-                    print(e)
+                except Exception as expt:
+                    print(expt)
             else:
                 print('not all slaves reached OP state')
 
@@ -141,11 +149,13 @@ class BasicExample:
                     if slave.state != pysoem.OP_STATE:
                         self._master.do_check_state = True
                         if slave.state == (pysoem.SAFEOP_STATE + pysoem.STATE_ERROR):
-                            print('ERROR : slave {} is in SAFE_OP + ERROR, attempting ack.'.format(i))
+                            print(
+                                'ERROR : slave {} is in SAFE_OP + ERROR, attempting ack.'.format(i))
                             slave.state = pysoem.SAFEOP_STATE + pysoem.STATE_ACK
                             slave.write_state()
                         elif slave.state == pysoem.SAFEOP_STATE:
-                            print('WARNING : slave {} is in SAFE_OP, try change to OPERATIONAL.'.format(i))
+                            print(
+                                'WARNING : slave {} is in SAFE_OP, try change to OPERATIONAL.'.format(i))
                             slave.state = pysoem.OP_STATE
                             slave.write_state()
                         elif slave.state > pysoem.NONE_STATE:
@@ -161,7 +171,8 @@ class BasicExample:
                             if slave.state == pysoem.NONE_STATE:
                                 if slave.recover():
                                     slave.is_lost = False
-                                    print('MESSAGE : slave {} recovered'.format(i))
+                                    print(
+                                        'MESSAGE : slave {} recovered'.format(i))
                             else:
                                 slave.is_lost = False
                                 print('MESSAGE : slave {} found'.format(i))
@@ -173,11 +184,11 @@ class BasicExample:
 if __name__ == '__main__':
 
     print('script started')
-    
+
     if len(sys.argv) > 1:
         try:
             BasicExample(sys.argv[1]).run()
-        except Exception as e:
-            print(e)
+        except Exception as expt:
+            print(expt)
     else:
         print('give ifname as script argument')
