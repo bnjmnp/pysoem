@@ -287,3 +287,6 @@ cdef extern from "ethercat.h":
     void ecx_dcsync01(ecx_contextt *context, uint16 slave, boolean act, uint32 CyclTime0, uint32 CyclTime1, int32 CyclShift)
     
     char* ec_ALstatuscode2string(uint16 ALstatuscode)
+    
+    uint32 ecx_readeeprom(ecx_contextt *context, uint16 slave, uint16 eeproma, int timeout)
+    int ecx_writeeeprom(ecx_contextt *context, uint16 slave, uint16 eeproma, uint16 data, int timeout)

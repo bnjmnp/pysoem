@@ -226,7 +226,7 @@ cdef class CdefMaster:
         
         Args:
             expected_state (int): Requested state
-            timeout (int): Timout value in us
+            timeout (int): Timeout value in us
         
         Returns:
             int: Requested state, or found state after timeout
@@ -287,6 +287,16 @@ class SdoError(Exception):
     def __init__(self, abort_code, desc):
         self.abort_code = abort_code
         self.desc = desc
+        
+class EepromError(Exception):
+    """EEPROM access error
+    
+    Attributes:
+        message (str): error message
+    """
+
+    def __init__(self, message):
+        self.message = message
     
 cdef class _CallbackData:
     cdef:
@@ -378,6 +388,38 @@ cdef class CdefSlave:
         
     def recover(self, timeout=500):
         return cpysoem.ecx_recover_slave(self._ecx_contextt, self._pos, timeout)
+        
+    def eeprom_read(self, int word_address, timeout=20000):
+        """Read 4 byte from EEPROM
+        
+        Args:
+            word_address (int): EEPROM address to read from
+            timeout (int): Timeout value in us
+        
+        Returns:
+            bytes: EEPROM data
+        """
+        cdef uint32_t tmp = cpysoem.ecx_readeeprom(self._ecx_contextt, self._pos, word_address, timeout)
+        return PyBytes_FromStringAndSize(<char*>&tmp, 4)
+        
+    def eeprom_write(self, int word_address, bytes data, timeout=20000):
+        """Write 2 byte (1 word) to EEPROM
+        
+        Args:
+            word_address (int): EEPROM address to write to
+            data (bytes): data (only 2 bytes are allowed)
+            timeout (int): Timeout value in us
+        Raises:
+            EepromError: if write fails
+            AttributeError: if data size is not 2
+        """
+        if not len(data) == 2:
+            raise AttributeError()
+        cdef uint16_t tmp
+        memcpy(<char*>&tmp, <unsigned char*>data, 2)
+        cdef int result = cpysoem.ecx_writeeeprom(self._ecx_contextt, self._pos, word_address, tmp, timeout)
+        if not result > 0:
+            raise EepromError('EEPROM write error')
     
     def _get_name(self):
         return (<bytes>self._ec_slave.name).decode('utf8')
