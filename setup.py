@@ -38,10 +38,20 @@ soem_inc_dirs.extend([os.path.join('.', 'soem', 'oshw', os_name),
                       os.path.join('.', 'soem', 'osal'),
                       os.path.join('.', 'soem', 'soem')])
 
+                      
+def readme():
+    """see: http://python-packaging.readthedocs.io/en/latest/metadata.html"""
+    with open('README.rst') as f:
+        return f.read()
+        
+        
 setup(name='PySOEM',
       version='0.0.0',
       description='Cython wrapper for the SOEM Library',
       author='Benjamin Partzsch',
+      author_email='benjamin_partzsch@web.de',
+      url='https://github.com/bnjmnp/pysoem',
+      long_description=readme(),
       ext_modules=cythonize([Extension("pysoem",
                                        ["pysoem.pyx"] + soem_sources,
                                        define_macros=soem_macros,
