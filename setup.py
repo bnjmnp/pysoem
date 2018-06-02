@@ -45,8 +45,8 @@ def readme():
         return f.read()
         
         
-setup(name='PySOEM',
-      version='0.0.0',
+setup(name='pysoem',
+      version='0.0.1',
       description='Cython wrapper for the SOEM Library',
       author='Benjamin Partzsch',
       author_email='benjamin_partzsch@web.de',
