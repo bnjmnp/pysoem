@@ -46,16 +46,27 @@ def readme():
         
         
 setup(name='pysoem',
-      version='0.0.1',
+      version='0.0.2',
       description='Cython wrapper for the SOEM Library',
       author='Benjamin Partzsch',
       author_email='benjamin_partzsch@web.de',
       url='https://github.com/bnjmnp/pysoem',
+      license='GPLv2',
       long_description=readme(),
       ext_modules=cythonize([Extension("pysoem",
                                        ["pysoem.pyx"] + soem_sources,
                                        define_macros=soem_macros,
                                        libraries=soem_libs,
                                        library_dirs=soem_lib_dirs,
-                                       include_dirs=soem_inc_dirs)])
+                                       include_dirs=soem_inc_dirs)]),
+      classifiers=[
+        'Development Status :: 2 - Pre-Alpha',
+        'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
+        'Programming Language :: Python',
+        'Programming Language :: Cython',
+        'Programming Language :: C',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: Implementation :: CPython',
+        'Topic :: Scientific/Engineering'
+      ]
 )
