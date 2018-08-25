@@ -16,14 +16,14 @@ cimport cpysoem
 
 import sys
 import logging
+import collections
+import time
 
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t    
 from libc.string cimport memcpy
-    
-import collections
-import time
+
 
 NONE_STATE = cpysoem.EC_STATE_NONE
 INIT_STATE = cpysoem.EC_STATE_INIT
@@ -33,6 +33,12 @@ SAFEOP_STATE = cpysoem.EC_STATE_SAFE_OP
 OP_STATE = cpysoem.EC_STATE_OPERATIONAL
 STATE_ACK = cpysoem.EC_STATE_ACK
 STATE_ERROR = cpysoem.EC_STATE_ERROR
+
+def _get_version():
+    with open('VERSION') as f:
+        return f.read().strip()
+        
+__version__ = _get_version()
 
 
 def find_adapters():

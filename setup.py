@@ -6,7 +6,7 @@ from Cython.Build import cythonize
 
 
 soem_sources = []
-soem_inc_dirs = []         
+soem_inc_dirs = []
 
 if sys.platform.startswith('win'):
     soem_macros = [('WIN32', '')]
@@ -38,15 +38,20 @@ soem_inc_dirs.extend([os.path.join('.', 'soem', 'oshw', os_name),
                       os.path.join('.', 'soem', 'osal'),
                       os.path.join('.', 'soem', 'soem')])
 
-                      
+
 def readme():
     """see: http://python-packaging.readthedocs.io/en/latest/metadata.html"""
     with open('README.rst') as f:
         return f.read()
-        
-        
+
+def version():
+    """see: https://packaging.python.org/guides/single-sourcing-package-version/"""
+    with open('VERSION') as f:
+        return f.read().strip()
+
+
 setup(name='pysoem',
-      version='0.0.2',
+      version=version(),
       description='Cython wrapper for the SOEM Library',
       author='Benjamin Partzsch',
       author_email='benjamin_partzsch@web.de',
