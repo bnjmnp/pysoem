@@ -316,7 +316,7 @@ cdef class CdefSlave:
     """
     
     EC_TIMEOUTRXM = 700000
-    STATIC_BUFFER_SIZE = 256
+    DEF STATIC_SDO_READ_BUFFER_SIZE = 256
     
     cdef cpysoem.ecx_contextt* _ecx_contextt
     cdef cpysoem.ec_slavet* _ec_slave
@@ -334,34 +334,39 @@ cdef class CdefSlave:
         else:
             cpysoem.ecx_dcsync01(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync1_cycle_time, sync0_shift_time) 
 
-    def sdo_read(self, index, uint8_t subindex, int size, ca=False):
+    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False):
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
-            
-        cdef unsigned char* pbuf = <unsigned char*>PyMem_Malloc((size)*sizeof(unsigned char))
-        cdef int size_clone = size
+        
+        cdef unsigned char* pbuf
+        cdef uint8_t std_buffer[STATIC_SDO_READ_BUFFER_SIZE]
+        cdef int size_inout
+        if size == 0:
+            pbuf = std_buffer
+            size_inout = STATIC_SDO_READ_BUFFER_SIZE
+        else:
+            pbuf = <unsigned char*>PyMem_Malloc((size)*sizeof(unsigned char))
+            size_inout = size
         
         if pbuf == NULL:
             raise MemoryError()
         
-        cdef int result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca, &size_clone, pbuf, self.EC_TIMEOUTRXM)
+        cdef int result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca, &size_inout, pbuf, self.EC_TIMEOUTRXM)
         
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
-            PyMem_Free(pbuf)
+            if pbuf != std_buffer:
+                PyMem_Free(pbuf)
             assert(err.Slave == self._pos)
             assert(err.Index == index)
             assert(err.SubIdx == subindex)
-            raise SdoError(err.AbortCode, cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8'))
-        
-        if not size_clone == size:
-            PyMem_Free(pbuf)
-            raise AssertionError('less bytes read than requested')            
+            raise SdoError(err.AbortCode, cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8'))         
         
         try:
-            return PyBytes_FromStringAndSize(<char*>pbuf, size)
+            return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
         finally:
-            PyMem_Free(pbuf)
+            if pbuf != std_buffer:
+                PyMem_Free(pbuf)
             
     def sdo_write(self, index, uint8_t subindex, bytes data, ca=False):
     
