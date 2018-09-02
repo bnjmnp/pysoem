@@ -1,7 +1,9 @@
 import sys
 import os
+import codecs
+import re
 
-from setuptools import setup, Extension
+from setuptools import setup, find_packages, Extension
 from Cython.Build import cythonize
 
 
@@ -44,27 +46,37 @@ def readme():
     with open('README.rst') as f:
         return f.read()
 
-def version():
-    """see: https://packaging.python.org/guides/single-sourcing-package-version/"""
-    with open('VERSION') as f:
-        return f.read().strip()
+        
+here = os.path.abspath(os.path.dirname(__file__))
 
+def read(*parts):
+    with codecs.open(os.path.join(here, *parts), 'r') as fp:
+        return fp.read()
 
+def find_version(*file_paths):
+    version_file = read(*file_paths)
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                              version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
+    
 setup(name='pysoem',
-      version=version(),
+      version=find_version("pysoem", "__init__.py"),
       description='Cython wrapper for the SOEM Library',
       author='Benjamin Partzsch',
       author_email='benjamin_partzsch@web.de',
       url='https://github.com/bnjmnp/pysoem',
       license='GPLv2',
       long_description=readme(),
-      ext_modules=cythonize([Extension('pysoem',
+      ext_modules=cythonize([Extension('pysoem.pysoem',
                                        ['pysoem/pysoem.pyx'] + soem_sources,
                                        define_macros=soem_macros,
                                        libraries=soem_libs,
                                        library_dirs=soem_lib_dirs,
-                                       include_dirs=soem_inc_dirs)]),
-      packages='pysoem',
+                                       include_dirs=['./pysoem'] + soem_inc_dirs)]),
+      packages=['pysoem'],
       classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',

@@ -34,12 +34,6 @@ OP_STATE = cpysoem.EC_STATE_OPERATIONAL
 STATE_ACK = cpysoem.EC_STATE_ACK
 STATE_ERROR = cpysoem.EC_STATE_ERROR
 
-def _get_version():
-    with open('VERSION') as f:
-        return f.read().strip()
-        
-__version__ = _get_version()
-
 
 def find_adapters():
     """Create a list of available network adapters.

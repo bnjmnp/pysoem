@@ -1,7 +1,6 @@
 include LICENSE
-include VERSION
 include README.rst
-include cpysoem.pxd
-include pysoem.pyx
 include examples/*.py
+include pysoem/cpysoem.pxd
+include pysoem/pysoem.pyx
 recursive-include soem *.h *.c
