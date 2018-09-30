@@ -3,24 +3,59 @@ PySOEM
 
 PySOEM is a Cython wrapper for the Simple Open EtherCAT Master Library (https://github.com/OpenEtherCATsociety/SOEM).
 
+Introduction
+------------
+
+PySOEM enables basic system testing of EtherCAT slave devices with Python.
+
+Features
+
+* input process data read and output process data write
+* SDO read and write
+* EEPROM read and write
+
+Todo
+
+* SDO info read
+* FoE
+* EoE
+
+Beware that real-time applications need some special considerations.
 
 Requirements
 ------------
+
+Linux
+^^^^^
+
 * Python 3
-* Cython
-* GCC (under Linux)
-* VS (under Windows, `here <http://matthew-brett.github.io/pydagogue/python_msvc.html>`_ [*]_ you may get help on this)
-* Git
-* WinPcap (under Windows)
+* Cython (installed into your Python distribution)
+* GCC (installed on your machine)
+* Python scripts that use PySOEM must be executed under administrator privileges
+
+Windows
+^^^^^^^
+
+* Python 3
+* a 64-bit operating system
+* WinPcap
 
 
 Installation
 ------------
+::
+
+  python -m pip install pysoem
+
+or
 
 ::
 
-  pip install git+https://github.com/bnjmnp/pysoem.git
+  pip install pysoem
 
-* consider using a `virtualenv <https://virtualenv.pypa.io/en/stable/>`_ 
+Consider using a `virtualenv <https://virtualenv.pypa.io/en/stable/>`_.
 
-.. [*] I'm not responsible for this external content nor is it my work.
+
+Usage
+-----
+Please have a look at the examples on GitHub.
