@@ -191,9 +191,7 @@ cdef extern from "ethercat.h":
         uint16           inputsWKC
         boolean          docheckstate
         uint32           *IOsegment #[EC_MAXIOSEGMENTS]    
-    
-    
-        
+
     ctypedef struct ec_idxstackT:
         uint8   pushed
         uint8   pulled
@@ -261,6 +259,23 @@ cdef extern from "ethercat.h":
         ec_eepromSMt   *eepSM
         ec_eepromFMMUt *eepFMMU
         int            (*FOEhook)(uint16 slave, int packetnumber, int datasize)
+        
+    ctypedef struct ec_ODlistt:
+        uint16  Slave
+        uint16  Entries
+        uint16  *Index #[EC_MAXODLIST]
+        uint16  *DataType #[EC_MAXODLIST]
+        uint8   *ObjectCode #[EC_MAXODLIST]
+        uint8   *MaxSub #[EC_MAXODLIST]
+        char    **Name #[EC_MAXODLIST][EC_MAXNAME+1]
+         
+    ctypedef struct ec_OElistt:
+        uint16 Entries
+        uint8  *ValueInfo #[EC_MAXOELIST]
+        uint16 *DataType #[EC_MAXOELIST]
+        uint16 *BitLength #[EC_MAXOELIST]
+        uint16 *ObjAccess #[EC_MAXOELIST]
+        char   **Name #[EC_MAXOELIST][EC_MAXNAME+1]
     
     int ecx_init(ecx_contextt* context, char* ifname)
     void ecx_close(ecx_contextt *context)
@@ -268,6 +283,9 @@ cdef extern from "ethercat.h":
     int ecx_config_map_group(ecx_contextt *context, void *pIOmap, uint8 group)
     int ecx_SDOread(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int *psize, void *p, int timeout)
     int ecx_SDOwrite(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int psize, void *p, int Timeout)
+    int ecx_readODlist(ecx_contextt *context, uint16 Slave, ec_ODlistt *pODlist)
+    int ecx_readODdescription(ecx_contextt *context, uint16 Item, ec_ODlistt *pODlist)
+    int ecx_readOE(ecx_contextt *context, uint16 Item, ec_ODlistt *pODlist, ec_OElistt *pOElist)
     
     int ecx_readstate(ecx_contextt *context)
     int ecx_writestate(ecx_contextt *context, uint16 slave)

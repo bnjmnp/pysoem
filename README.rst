@@ -16,7 +16,6 @@ Features
 
 Todo
 
-* SDO info read
 * FoE
 * EoE
 
@@ -59,3 +58,19 @@ Consider using a `virtualenv <https://virtualenv.pypa.io/en/stable/>`_.
 Usage
 -----
 Please have a look at the examples on GitHub.
+
+
+Changes
+-------
+
+v0.0.15
+^^^^^^^
+* SDO info read
+
+v0.0.14
+^^^^^^^
+* Readme update only
+
+v0.0.13
+^^^^^^^
+* Initial publication

@@ -22,6 +22,7 @@ def read_eeprom_of_first_slave(ifname):
         
     master.close()
 
+
 if __name__ == '__main__':
 
     print('script started')

@@ -21,7 +21,7 @@ import time
 
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
-from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t    
+from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 from libc.string cimport memcpy
 
 
@@ -34,6 +34,34 @@ OP_STATE = cpysoem.EC_STATE_OPERATIONAL
 STATE_ACK = cpysoem.EC_STATE_ACK
 STATE_ERROR = cpysoem.EC_STATE_ERROR
 
+cpdef enum ec_datatype:
+    ECT_BOOLEAN         = 0x0001,
+    ECT_INTEGER8        = 0x0002,
+    ECT_INTEGER16       = 0x0003,
+    ECT_INTEGER32       = 0x0004,
+    ECT_UNSIGNED8       = 0x0005,
+    ECT_UNSIGNED16      = 0x0006,
+    ECT_UNSIGNED32      = 0x0007,
+    ECT_REAL32          = 0x0008,
+    ECT_VISIBLE_STRING  = 0x0009,
+    ECT_OCTET_STRING    = 0x000A,
+    ECT_UNICODE_STRING  = 0x000B,
+    ECT_TIME_OF_DAY     = 0x000C,
+    ECT_TIME_DIFFERENCE = 0x000D,
+    ECT_DOMAIN          = 0x000F,
+    ECT_INTEGER24       = 0x0010,
+    ECT_REAL64          = 0x0011,
+    ECT_INTEGER64       = 0x0015,
+    ECT_UNSIGNED24      = 0x0016,
+    ECT_UNSIGNED64      = 0x001B,
+    ECT_BIT1            = 0x0030,
+    ECT_BIT2            = 0x0031,
+    ECT_BIT3            = 0x0032,
+    ECT_BIT4            = 0x0033,
+    ECT_BIT5            = 0x0034,
+    ECT_BIT6            = 0x0035,
+    ECT_BIT7            = 0x0036,
+    ECT_BIT8            = 0x0037
 
 def find_adapters():
     """Create a list of available network adapters.
@@ -287,7 +315,18 @@ class SdoError(Exception):
     def __init__(self, abort_code, desc):
         self.abort_code = abort_code
         self.desc = desc
-        
+
+
+class SdoInfoError(Exception):
+    """Errors during Object directory info read
+    
+    Attributes:
+        message (str): error message
+    """
+
+    def __init__(self, message):
+        self.message = message
+
 class EepromError(Exception):
     """EEPROM access error
     
@@ -321,7 +360,8 @@ cdef class CdefSlave:
     cdef cpysoem.ecx_contextt* _ecx_contextt
     cdef cpysoem.ec_slavet* _ec_slave
     cdef _pos # keep in mind that first slave has pos 1  
-    cdef public _CallbackData _cd 
+    cdef public _CallbackData _cd
+    cdef cpysoem.ec_ODlistt _ex_odlist
     
     def __init__(self, pos):
         self._pos = pos
@@ -492,6 +532,143 @@ cdef class CdefSlave:
     
     is_lost = property(_get_is_lost, _set_is_lost)
     
+    def _get_od(self):
+        logging.debug('ecx_readODlist()')
+        cdef int result = cpysoem.ecx_readODlist(self._ecx_contextt, self._pos, &self._ex_odlist)
+        if not result > 0:
+            raise SdoInfoError('Sdo List Info read failed')
+        
+        coe_objects = []
+        for i in range(self._ex_odlist.Entries):
+            coe_object = CdefCoeObject(i)
+            coe_object._ecx_context = self._ecx_contextt
+            coe_object._ex_odlist = &self._ex_odlist
+            coe_objects.append(coe_object)
+            
+        return coe_objects
+        
+    od = property(_get_od)
+
+
+cdef class CdefCoeObject:
+    cdef cpysoem.ecx_contextt* _ecx_context
+    cdef cpysoem.ec_ODlistt* _ex_odlist
+    cdef int _item
+    cdef cpysoem.boolean _is_description_read
+    cdef cpysoem.boolean _are_entries_read
+    cdef cpysoem.ec_OElistt _ex_oelist
+    
+    def __init__(self, int item):
+        self._item = item
+        self._is_description_read = False
+        self._are_entries_read = False
+        
+    def _read_description(self):
+        cdef int result
+        if not self._is_description_read:
+          logging.debug('ecx_readODdescription()')
+          result = cpysoem.ecx_readODdescription(self._ecx_context, self._item, self._ex_odlist)
+          if not result > 0:
+              raise SdoInfoError('Sdo Object Info read failed')
+          self._is_description_read = True
+          
+    def _read_entries(self):
+        cdef int result
+        if not self._are_entries_read:
+            logging.debug('ecx_readOE()')
+            result = cpysoem.ecx_readOE(self._ecx_context, self._item, self._ex_odlist, &self._ex_oelist)
+            if not result > 0:
+                raise SdoInfoError('Sdo ObjectEntry Info read failed')
+            self._are_entries_read = True
+            
+    def _get_index(self):
+        return self._ex_odlist.Index[self._item]
+        
+    index = property(_get_index)
+    
+    def _get_data_type(self):
+        self._read_description()
+        return self._ex_odlist.DataType[self._item]
+        
+    data_type = property(_get_data_type)
+    
+    def _get_object_code(self):
+        self._read_description()
+        return self._ex_odlist.ObjectCode[self._item]
+        
+    object_code = property(_get_object_code)
+        
+    def _get_name(self):
+        self._read_description()
+        return (<bytes>self._ex_odlist.Name[self._item]).decode('utf8')
+        
+    name = property(_get_name)
+    
+    def _get_entries(self):
+        self._read_description()
+        self._read_entries()
+        
+        if self._ex_odlist.MaxSub[self._item] == 0:
+            return []
+        else:
+            entries = []
+            for i in range(self._ex_odlist.MaxSub[self._item]+1):
+                entry = CdefCoeObjectEntry(i)
+                entry._ex_oelist = &self._ex_oelist
+                entries.append(entry)
+            return entries
+
+    entries = property(_get_entries)
+    
+    def _get_bit_length(self):
+        cdef int sum = 0
+        self._read_description()
+        self._read_entries()
+        if self._ex_odlist.MaxSub[self._item] == 0:
+            return self._ex_oelist.BitLength[0]
+        else:
+            for i in range(self._ex_odlist.MaxSub[self._item]+1):
+                sum += self._ex_oelist.BitLength[i]
+            return sum
+            
+    bit_length = property(_get_bit_length)
+    
+    def _get_obj_access(self):
+        if self._ex_odlist.MaxSub[self._item] == 0:
+            return self._ex_oelist.ObjAccess[0]
+        else:
+            return 0
+    
+    obj_access = property(_get_obj_access)
+        
+
+cdef class CdefCoeObjectEntry:
+    cdef cpysoem.ec_OElistt* _ex_oelist
+    cdef int _item
+    
+    def __init__(self, int item):
+        self._item = item
+        
+    def _get_name(self):            
+        return (<bytes>self._ex_oelist.Name[self._item]).decode('utf8')
+        
+    name = property(_get_name)
+
+    def _get_data_type(self):
+        return self._ex_oelist.DataType[self._item]
+        
+    data_type = property(_get_data_type)
+    
+    def _get_bit_length(self):
+        return self._ex_oelist.BitLength[self._item]
+    
+    bit_length = property(_get_bit_length)
+    
+    def _get_obj_access(self):
+        return self._ex_oelist.ObjAccess[self._item]
+    
+    obj_access = property(_get_obj_access)
+        
 
 cdef int _xPO2SOconfig(cpysoem.uint16 slave, void* user):
     assert(slave>0)   
