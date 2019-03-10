@@ -22,7 +22,7 @@ class MinimalExample:
 
     def __init__(self, ifname):
         self._ifname = ifname
-        self._master = pysoem.EtherCatMaster()
+        self._master = pysoem.Master()
         SlaveSet = collections.namedtuple(
             'SlaveSet', 'slave_name product_code config_func')
         self._expected_slave_mapping = {0: SlaveSet('EK1100', self.EK1100_PRODUCT_CODE, None),
