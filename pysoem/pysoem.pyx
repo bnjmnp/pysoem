@@ -189,7 +189,7 @@ cdef class CdefMaster:
         """
         ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
         if ret_val > 0:
-          # santiy check
+          # sanity check
           assert(ret_val==self._ec_slavecount)        
           for i in range(self._ec_slavecount):
               self.slaves.append(self._get_slave(i))
@@ -209,8 +209,28 @@ cdef class CdefMaster:
             if cd.exc_raised:
                 raise cd.exc_info[0],cd.exc_info[1],cd.exc_info[2]
         logging.debug('io map size: {}'.format(ret_val))
-        # santiy check
+        # sanity check
         assert(ret_val<=EC_IOMAPSIZE)
+        # collect SDO or mailbox errors that occurred during PDO configuration read in ecx_config_map_group
+        error_list = []
+        cdef cpysoem.ec_errort err
+        while cpysoem.ecx_poperror(&self._ecx_contextt, &err):
+            if err.Etype == cpysoem.EC_ERR_TYPE_SDO_ERROR:
+                error_list.append(SdoError(err.Slave,
+                                           err.Index,
+                                           err.SubIdx,
+                                           err.AbortCode, cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8')))
+            elif err.Etype == cpysoem.EC_ERR_TYPE_MBX_ERROR:
+                error_list.append(MailboxError(err.Slave,
+                                               err.ErrorCode,
+                                               cpysoem.ec_mbxerror2string(err.ErrorCode).decode('utf8')))
+            elif err.Etype == cpysoem.EC_ERR_TYPE_PACKET_ERROR:
+                error_list.append(PacketError(err.Slave,
+                                              err.ErrorCode))
+            else:
+                error_list.append(Exception('unexpected error'))
+        if len(error_list) > 0:
+            raise ConfigMapError(error_list)
         return ret_val
         
     def config_dc(self):
@@ -308,11 +328,15 @@ class SdoError(Exception):
     """Sdo read or write abort
     
     Attributes:
+        slave_pos (int): position of the slave
         abort_code (int): specified sdo abort code
         desc (str): error description
     """
     
-    def __init__(self, abort_code, desc):
+    def __init__(self, slave_pos, index, subindex, abort_code, desc):
+        self.slave_pos = slave_pos
+        self.index = index
+        self.subindex = subindex
         self.abort_code = abort_code
         self.desc = desc
 
@@ -326,6 +350,59 @@ class SdoInfoError(Exception):
 
     def __init__(self, message):
         self.message = message
+
+
+class MailboxError(Exception):
+    """Errors in mailbox communication
+    
+    Attributes:
+        slave_pos (int): position of the slave
+        error_code (int): error code
+        desc (str): error description
+    """
+
+    def __init__(self, slave_pos, error_code, desc):
+        self.slave_pos = slave_pos
+        self.error_code = error_code
+        self.desc = desc
+
+
+class PacketError(Exception):
+    """Errors related to mailbox communication 
+    
+    Attributes:
+        slave_pos (int): position of the slave
+        error_code (int): error code
+        message (str): error message
+        desc (str): error description
+    """
+
+    # based on the comments in the soem code
+    _code_desc = {
+      1: 'Unexpected frame returned',
+      3: 'Data container too small for type',
+    }
+    
+    def __init__(self, slave_pos, error_code):
+        self.slave_pos = slave_pos
+        self.error_code = error_code
+        
+    def _get_desc(self):
+        return self._code_desc[self.error_code]
+        
+    desc = property(_get_desc)
+
+
+class ConfigMapError(Exception):
+    """Errors during Object directory info read
+    
+    Attributes:
+        error_list (str): a list of exceptions of type MailboxError or SdoError
+    """
+
+    def __init__(self, error_list):
+        self.error_list = error_list
+
 
 class EepromError(Exception):
     """EEPROM access error
@@ -397,30 +474,21 @@ cdef class CdefSlave:
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
             if pbuf != std_buffer:
                 PyMem_Free(pbuf)
-            assert(err.Slave == self._pos)
-            assert(err.Index == index)
-            assert(err.SubIdx == subindex)
-            raise SdoError(err.AbortCode, cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8'))         
-        
+            self._raise_exception(&err)
+
         try:
             return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
         finally:
             if pbuf != std_buffer:
                 PyMem_Free(pbuf)
             
-    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False):
-    
-        assert(self._ecx_contextt != NULL)
-            
+    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False):            
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca, size, <unsigned char*>data, self.EC_TIMEOUTRXM)
         
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
-            assert(err.Slave == self._pos)
-            assert(err.Index == index)
-            assert(err.SubIdx == subindex)
-            raise SdoError(err.AbortCode, cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8'))
+            self._raise_exception(&err)
         
     def write_state(self):
         return cpysoem.ecx_writestate(self._ecx_contextt, self._pos)
@@ -465,6 +533,23 @@ cdef class CdefSlave:
         cdef int result = cpysoem.ecx_writeeeprom(self._ecx_contextt, self._pos, word_address, tmp, timeout)
         if not result > 0:
             raise EepromError('EEPROM write error')
+            
+    cdef _raise_exception(self, cpysoem.ec_errort* err):
+        if err.Etype == cpysoem.EC_ERR_TYPE_SDO_ERROR:
+            raise SdoError(err.Slave,
+                           err.Index,
+                           err.SubIdx,
+                           err.AbortCode,
+                           cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8'))
+        elif err.Etype == cpysoem.EC_ERR_TYPE_MBX_ERROR:
+            raise MailboxError(err.Slave,
+                               err.ErrorCode,
+                               cpysoem.ec_mbxerror2string(err.ErrorCode).decode('utf8'))
+        elif err.Etype == cpysoem.EC_ERR_TYPE_PACKET_ERROR:
+            raise PacketError(err.Slave,
+                              err.ErrorCode)
+        else:
+            raise Exception('unexpected error, Etype: {}'.format(err.Etype))
     
     def _get_name(self):
         return (<bytes>self._ec_slave.name).decode('utf8')

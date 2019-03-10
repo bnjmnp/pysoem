@@ -63,6 +63,10 @@ Please have a look at the examples on GitHub.
 Changes
 -------
 
+v0.0.16
+^^^^^^^
+* Improvement on SDO Aborts
+
 v0.0.15
 ^^^^^^^
 * SDO info read

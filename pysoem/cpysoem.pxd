@@ -72,6 +72,7 @@ cdef extern from "ethercat.h":
         uint8       SubIdx
         ec_err_type Etype
         int32   AbortCode
+        uint16  ErrorCode
     
     # from nicdrv.h
         
@@ -299,6 +300,7 @@ cdef extern from "ethercat.h":
     
     boolean ecx_poperror(ecx_contextt *context, ec_errort *Ec)
     const char* ec_sdoerror2string(uint32 sdoerrorcode)
+    char* ec_mbxerror2string(uint16 errorcode)
     
     boolean ecx_configdc(ecx_contextt *context)
     void ecx_dcsync0(ecx_contextt *context, uint16 slave, boolean act, uint32 CyclTime, int32 CyclShift)
