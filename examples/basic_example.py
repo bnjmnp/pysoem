@@ -213,5 +213,5 @@ if __name__ == '__main__':
             print('basic_example failed: ' + expt.message)
             sys.exit(1)
     else:
-        print('give ifname as script argument')
+        print('usage: basic_example ifname')
         sys.exit(1)

@@ -13,7 +13,7 @@ def read_eeprom_of_first_slave(ifname):
     
         first_slave = master.slaves[0]
         
-        for i in range(0,0x80, 2):
+        for i in range(0, 0x80, 2):
             print('{:04x}:'.format(i), end='')
             print('|'.join('{:02x}'.format(x) for x in first_slave.eeprom_read(i)))
     

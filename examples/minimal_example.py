@@ -107,12 +107,14 @@ class MinimalExample:
 
 if __name__ == '__main__':
 
-    print('minimalexample')
+    print('minimal_example')
 
     if len(sys.argv) > 1:
         try:
             MinimalExample(sys.argv[1]).run()
         except Exception as expt:
             print(expt)
+            sys.exit(1)
     else:
-        print('usage: minimalexample ifname')
+        print('usage: minimal_example ifname')
+        sys.exit(1)
