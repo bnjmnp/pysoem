@@ -322,6 +322,11 @@ cdef class CdefMaster:
         return (self._ec_group[0].outputsWKC * 2) + self._ec_group[0].inputsWKC
         
     expected_wkc  = property(_get_expected_wkc)
+    
+    def _get_dc_time(self):
+        return self._ec_DCtime
+        
+    dc_time = property(_get_dc_time)
         
         
 class SdoError(Exception):

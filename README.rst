@@ -63,6 +63,10 @@ Please have a look at the examples on GitHub.
 Changes
 -------
 
+v0.0.17
+^^^^^^^
+* Exposes ec_DCtime (`dc_time`) for DC synchronization
+
 v0.0.16
 ^^^^^^^
 * Improvement on SDO Aborts
