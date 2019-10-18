@@ -60,7 +60,7 @@ class MinimalExample:
                 self._master.read_state()
                 for slave in self._master.slaves:
                     if not slave.state == pysoem.SAFEOP_STATE:
-                        print('{} did not reach SAFEOP state'.format(slave.name()))
+                        print('{} did not reach SAFEOP state'.format(slave.name))
                         print('al status code {} ({})'.format(hex(slave.al_status),
                                                               pysoem.al_status_code_to_string(slave.al_status)))
                 raise Exception('not all slaves reached SAFEOP state')
@@ -73,7 +73,7 @@ class MinimalExample:
                 self._master.read_state()
                 for slave in self._master.slaves:
                     if not slave.state == pysoem.OP_STATE:
-                        print('{} did not reach OP state'.format(slave.name()))
+                        print('{} did not reach OP state'.format(slave.name))
                         print('al status code {} ({})'.format(hex(slave.al_status),
                                                               pysoem.al_status_code_to_string(slave.al_status)))
                 raise Exception('not all slaves reached OP state')
