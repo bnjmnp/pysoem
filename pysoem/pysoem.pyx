@@ -588,11 +588,14 @@ cdef class CdefSlave:
             self._ec_slave.PO2SOconfig = _xPO2SOconfig
         
     def _get_input(self):
-        return PyBytes_FromStringAndSize(<char*>self._ec_slave.inputs, self._ec_slave.Ibytes)
+        num_bytes = self._ec_slave.Ibytes
+        if (self._ec_slave.Ibytes == 0 and self._ec_slave.Ibits > 0):
+            num_bytes = 1
+        return PyBytes_FromStringAndSize(<char*>self._ec_slave.inputs, num_bytes)
 
     input = property(_get_input)
     config_func = property(_get_PO2SOconfig, _set_PO2SOconfig)
-    
+
     def _get_state(self):
         return self._ec_slave.state
 
@@ -602,7 +605,10 @@ cdef class CdefSlave:
     state = property(_get_state, _set_state)
     
     def _get_output(self):
-        return PyBytes_FromStringAndSize(<char*>self._ec_slave.outputs, self._ec_slave.Obytes)
+        num_bytes = self._ec_slave.Obytes
+        if (self._ec_slave.Obytes == 0 and self._ec_slave.Obits > 0):
+            num_bytes = 1
+        return PyBytes_FromStringAndSize(<char*>self._ec_slave.outputs, num_bytes)
 
     def _set_output(self, bytes value):
         memcpy(<char*>self._ec_slave.outputs, <char*>value, len(value))
