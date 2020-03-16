@@ -63,6 +63,10 @@ Please have a look at the examples on GitHub.
 Changes
 -------
 
+v0.0.18
+^^^^^^^
+* Fixes bug when Ibytes = 0 and Ibits > 0
+
 v0.0.17
 ^^^^^^^
 * Exposes ec_DCtime (`dc_time`) for DC synchronization
