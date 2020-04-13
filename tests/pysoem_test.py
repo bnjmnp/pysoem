@@ -1,7 +1,16 @@
-"""run some tests against an Beckhoff EL1259
+"""Run some basic tests against an Beckhoff EL1259
 
-This test expects a physical slave layout according to
-PySoemTestEnvironment._expected_slave_layout, see below.
+This test expects a physical slave layout according to PySoemTestEnvironment._expected_slave_layout, see below.
+
+Run this tests with the unit testing framework that comes with python: `python -m unittest pysoem_test`.
+
+In order to run the tests you need to provide a test_config.py that contains two variables as seen below.
+
+```py
+ifname = '\\Device\\NPF_{2BBC7456-5AED-4F27-AECA-292762639099}'
+expected_pysoem_version = '0.0.18'
+```
+Thees values must reflect your setup.
 """
 
 import unittest
@@ -14,6 +23,7 @@ import test_config
 
 
 class PySoemTestEnvironment:
+    """Setup a basic pysoem test fixture that is needed for most of tests"""
 
     BECKHOFF_VENDOR_ID = 0x0002
     EK1100_PRODUCT_CODE = 0x044c2c52
@@ -60,15 +70,13 @@ class PySoemTestEnvironment:
         return self._master.slaves
 
 
-#@unittest.skip
 class PySoemTest(unittest.TestCase):
     def test_version(self):
         self.assertEqual(test_config.expected_pysoem_version, pysoem.__version__)
 
 
-#@unittest.skip
 class PySoemTestConfigFunc(unittest.TestCase):
-    """Check if an Exception in a config_func callback causes config_init to fail"""
+    """Check if an exception in a config_func callback causes config_init to fail"""
 
     class MyVeryOwnExceptionType(Exception):
         pass
@@ -90,8 +98,8 @@ class PySoemTestConfigFunc(unittest.TestCase):
         self._test_env.teardown()
 
 
-#@unittest.skip
 class PySoemTestSdo(unittest.TestCase):
+    """Test SDO communication"""
 
     def setUp(self):
         self._test_env = PySoemTestEnvironment()
@@ -164,14 +172,13 @@ def get_obj_from_od(od, index):
     return next(obj for obj in od if obj.index == index)
 
 
-#@unittest.skip
 class PySoemTestSdoInfo(unittest.TestCase):
+    """Test SDO Info read"""
 
     def setUp(self):
         self._test_env = PySoemTestEnvironment()
         self._test_env.setup()
         self._el1259 = self._test_env.get_slaves()[2]
-        print(type(self._el1259))
 
     def tearDown(self):
         self._test_env.teardown()
@@ -198,3 +205,7 @@ class PySoemTestSdoInfo(unittest.TestCase):
         self.assertEqual(pysoem.ECT_UNSIGNED32, entry_vendor_id.data_type)
         self.assertEqual(32, entry_vendor_id.bit_length)
         self.assertEqual(0x0007, entry_vendor_id.obj_access)
+
+
+if __name__ == '__main__':
+    unittest.main()
