@@ -13,9 +13,11 @@ expected_pysoem_version = '0.0.18'
 Thees values must reflect your setup.
 """
 
+import time
 import unittest
 import collections
 import struct
+import threading
 
 import pysoem
 
@@ -33,6 +35,14 @@ class PySoemTestEnvironment:
     def __init__(self):
         self._ifname = test_config.ifname
         self._master = pysoem.Master()
+        self._master.in_op = False
+        self._master.do_check_state = False
+        self._proc_thread_handle = None
+        self._check_thread_handle = None
+        self._pd_thread_stop_event = threading.Event()
+        self._ch_thread_stop_event = threading.Event()
+        self._actual_wkc = 0
+
         self.SlaveSet = collections.namedtuple('SlaveSet', 'name product_code config_func')
 
         self.el3002_config_func = None
@@ -56,9 +66,33 @@ class PySoemTestEnvironment:
 
         self._master.config_map()
 
-        assert(self._master.state_check(pysoem.SAFEOP_STATE) == pysoem.SAFEOP_STATE)
+        assert self._master.state_check(pysoem.SAFEOP_STATE) == pysoem.SAFEOP_STATE
+
+    def go_to_op_state(self):
+        self._master.state = pysoem.OP_STATE
+
+        self._proc_thread_handle = threading.Thread(target=self._processdata_thread)
+        self._proc_thread_handle.start()
+        self._check_thread_handle = threading.Thread(target=self._check_thread)
+        self._check_thread_handle.start()
+
+        self._master.write_state()
+        for _ in range(40):
+            self._master.state_check(pysoem.OP_STATE, 50000)
+            if self._master.state == pysoem.OP_STATE:
+                all_slaves_reached_op_state = True
+                break
+        self._master.in_op = True
+        assert 'all_slaves_reached_op_state' in locals(), 'could not reach OP state'
 
     def teardown(self):
+        self._pd_thread_stop_event.set()
+        self._ch_thread_stop_event.set()
+        if self._proc_thread_handle:
+            self._proc_thread_handle.join()
+        if self._check_thread_handle:
+            self._check_thread_handle.join()
+
         self._master.state = pysoem.INIT_STATE
         self._master.write_state()
         self._master.close()
@@ -68,6 +102,56 @@ class PySoemTestEnvironment:
 
     def get_slaves(self):
         return self._master.slaves
+
+    def _processdata_thread(self):
+        while not self._pd_thread_stop_event.is_set():
+            self._master.send_processdata()
+            self._actual_wkc = self._master.receive_processdata(10000)
+            time.sleep(0.01)
+
+    @staticmethod
+    def _check_slave(slave, pos):
+        if slave.state == (pysoem.SAFEOP_STATE + pysoem.STATE_ERROR):
+            print(
+                'ERROR : slave {} is in SAFE_OP + ERROR, attempting ack.'.format(pos))
+            slave.state = pysoem.SAFEOP_STATE + pysoem.STATE_ACK
+            slave.write_state()
+        elif slave.state == pysoem.SAFEOP_STATE:
+            print(
+                'WARNING : slave {} is in SAFE_OP, try change to OPERATIONAL.'.format(pos))
+            slave.state = pysoem.OP_STATE
+            slave.write_state()
+        elif slave.state > pysoem.NONE_STATE:
+            if slave.reconfig():
+                slave.is_lost = False
+                print('MESSAGE : slave {} reconfigured'.format(pos))
+        elif not slave.is_lost:
+            slave.state_check(pysoem.OP_STATE)
+            if slave.state == pysoem.NONE_STATE:
+                slave.is_lost = True
+                print('ERROR : slave {} lost'.format(pos))
+        if slave.is_lost:
+            if slave.state == pysoem.NONE_STATE:
+                if slave.recover():
+                    slave.is_lost = False
+                    print(
+                        'MESSAGE : slave {} recovered'.format(pos))
+            else:
+                slave.is_lost = False
+                print('MESSAGE : slave {} found'.format(pos))
+
+    def _check_thread(self):
+        while not self._ch_thread_stop_event.is_set():
+            if self._master.in_op and ((self._actual_wkc < self._master.expected_wkc) or self._master.do_check_state):
+                self._master.do_check_state = False
+                self._master.read_state()
+                for i, slave in enumerate(self._master.slaves):
+                    if slave.state != pysoem.OP_STATE:
+                        self._master.do_check_state = True
+                        self._check_slave(slave, i)
+                if not self._master.do_check_state:
+                    print('OK : all slaves resumed OPERATIONAL.')
+            time.sleep(0.01)
 
 
 class PySoemTest(unittest.TestCase):
@@ -114,13 +198,12 @@ class PySoemTestSdo(unittest.TestCase):
         # read
         with self.assertRaises(pysoem.SdoError) as ex1:
             self._el1259.sdo_read(0x1111, 0, 1)
+        self.assertEqual(ex1.exception.abort_code, 0x06020000)
+        self.assertEqual(ex1.exception.desc, 'The object does not exist in the object directory')
 
         # write
         with self.assertRaises(pysoem.SdoError) as ex2:
             self._el1259.sdo_write(0x1111, 0, bytes(4))
-
-        self.assertEqual(ex1.exception.abort_code, 0x06020000)
-        self.assertEqual(ex1.exception.desc, 'The object does not exist in the object directory')
         self.assertEqual(ex2.exception.abort_code, 0x06020000)
         self.assertEqual(ex2.exception.desc, 'The object does not exist in the object directory')
 
@@ -167,6 +250,15 @@ class PySoemTestSdo(unittest.TestCase):
         self.assertEqual(3, cm.exception.error_code)
         self.assertEqual('Data container too small for type', cm.exception.desc)
 
+    def test_write_to_1c1x_while_in_safeop(self):
+
+        for index in [0x1c12, 0x1c13]:
+            with self.assertRaises(pysoem.SdoError) as ex1:
+                self._el1259.sdo_write(index, 0, bytes(1))
+            self.assertEqual(ex1.exception.abort_code, 0x08000022)
+            self.assertEqual(ex1.exception.desc, 'Data cannot be transferred or stored to the application '
+                                                 'because of the present device state')
+
 
 def get_obj_from_od(od, index):
     return next(obj for obj in od if obj.index == index)
@@ -205,6 +297,66 @@ class PySoemTestSdoInfo(unittest.TestCase):
         self.assertEqual(pysoem.ECT_UNSIGNED32, entry_vendor_id.data_type)
         self.assertEqual(32, entry_vendor_id.bit_length)
         self.assertEqual(0x0007, entry_vendor_id.obj_access)
+
+
+class PySoemTestPdo(unittest.TestCase):
+    """Use the fact that the EL1259's output state can be monitored"""
+
+    def setUp(self):
+        self._test_env = PySoemTestEnvironment()
+
+    def el1259_config_func(self, slave_pos):
+        """
+        struct format characters
+        B - uint8
+        x - pac byte
+        H - uint16
+        """
+        el1259 = self._test_env.get_slaves()[slave_pos]
+
+        el1259.sdo_write(0x8001, 2, struct.pack('B', 1))
+
+        rx_map_obj = [0x1603, 0x1607, 0x160B, 0x160F, 0x1613, 0x1617, 0x161B, 0x161F,
+                      0x1620, 0x1621, 0x1622, 0x1623, 0x1624, 0x1625, 0x1626, 0x1627]
+        pack_fmt = 'Bx' + ''.join(['H' for _ in range(len(rx_map_obj))])
+        rx_map_obj_bytes = struct.pack(pack_fmt, len(rx_map_obj), *rx_map_obj)
+        el1259.sdo_write(0x1c12, 0, rx_map_obj_bytes, True)
+
+        tx_map_obj = [0x1A00, 0x1A01, 0x1A02, 0x1A03, 0x1A04, 0x1A05, 0x1A06, 0x1A07, 0x1A08,
+                      0x1A0C, 0x1A10, 0x1A14, 0x1A18, 0x1A1C, 0x1A20, 0x1A24]
+        pack_fmt = 'Bx' + ''.join(['H' for _ in range(len(tx_map_obj))])
+        tx_map_obj_bytes = struct.pack(pack_fmt, len(tx_map_obj), *tx_map_obj)
+        el1259.sdo_write(0x1c13, 0, tx_map_obj_bytes, True)
+
+        el1259.dc_sync(1, 10_000_000)
+
+    def test_io_toggle(self):
+        """Toggle every output and see if the "Ouput State" in the input changes accordingly"""
+        self._test_env.el1259_config_func = self.el1259_config_func
+        self._test_env.setup()
+        self._test_env.go_to_op_state()
+
+        el1259 = self._test_env.get_slaves()[2]
+        output_len = len(el1259.output)
+
+        tmp = bytearray([0 for _ in range(output_len)])
+
+        for i in range(8):
+            out_offset = 12*i
+            in_offset = 4*i
+
+            tmp[out_offset] = 0x02
+            el1259.output = bytes(tmp)
+            time.sleep(0.1)
+            assert el1259.input[in_offset] & 0x04 == 0x04
+
+            tmp[out_offset] = 0x00
+            el1259.output = bytes(tmp)
+            time.sleep(0.1)
+            assert el1259.input[in_offset] & 0x04 == 0x00
+
+    def tearDown(self):
+        self._test_env.teardown()
 
 
 if __name__ == '__main__':
