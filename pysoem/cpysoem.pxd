@@ -110,7 +110,7 @@ cdef extern from "ethercat.h":
         uint32  SMflags
     
     ctypedef struct ec_slavet:
-        uint16           state;
+        uint16           state
         uint16           ALstatuscode
         uint16           configadr
         uint16           aliasadr
@@ -172,6 +172,7 @@ cdef extern from "ethercat.h":
         uint8            FMMUunused
         boolean          islost
         int              (*PO2SOconfig)(uint16 slave, void* user)
+        int              (*PO2SOconfigx)(ecx_contextt* context, uint16 slave)
         void*            user
         char             *name #[EC_MAXNAME + 1]
     
@@ -239,8 +240,8 @@ cdef extern from "ethercat.h":
         uint8   FMMU3
     
     ctypedef struct ecx_contextt:
-        ecx_portt *port
-        ec_slavet *slavelist
+        ecx_portt     *port
+        ec_slavet      *slavelist
         int            *slavecount
         int            maxslave
         ec_groupt      *grouplist
@@ -251,8 +252,6 @@ cdef extern from "ethercat.h":
         ec_eringt      *elist
         ec_idxstackT   *idxstack
         boolean        *ecaterror
-        uint16         DCtO
-        uint16         DCl
         int64          *DCtime
         ec_SMcommtypet *SMcommtype
         ec_PDOassignt  *PDOassign
@@ -260,6 +259,8 @@ cdef extern from "ethercat.h":
         ec_eepromSMt   *eepSM
         ec_eepromFMMUt *eepFMMU
         int            (*FOEhook)(uint16 slave, int packetnumber, int datasize)
+        int            (*EOEhook)(ecx_contextt* context, uint16 slave, void* eoembx)
+        int            manualstatechange
         
     ctypedef struct ec_ODlistt:
         uint16  Slave

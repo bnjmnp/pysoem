@@ -11,7 +11,7 @@ soem_sources = []
 soem_inc_dirs = []
 
 if sys.platform.startswith('win'):
-    soem_macros = [('WIN32', '')]
+    soem_macros = [('WIN32', ''), ('_CRT_SECURE_NO_WARNINGS', '')]
     soem_lib_dirs = [os.path.join('.', 'soem', 'oshw', 'win32', 'wpcap', 'Lib', 'x64')]
     soem_libs = ['wpcap', 'Packet', 'Ws2_32', 'Winmm']
     soem_inc_dirs.append(os.path.join('.', 'soem', 'oshw', 'win32', 'wpcap', 'Include'))
@@ -21,6 +21,8 @@ elif sys.platform.startswith('linux'):
     soem_lib_dirs = []
     soem_libs = ['pthread', 'rt'] 
     os_name = 'linux'
+
+soem_macros.append(('EC_VER2', ''))
 
 soem_sources.extend([os.path.join('.', 'soem', 'osal', os_name, 'osal.c'),
                      os.path.join('.', 'soem', 'oshw', os_name, 'oshw.c'),

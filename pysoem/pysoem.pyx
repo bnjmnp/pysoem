@@ -152,8 +152,6 @@ cdef class CdefMaster:
         self._ecx_contextt.idxstack = &self._ec_idxstack
         self._EcatError = 0
         self._ecx_contextt.ecaterror = &self._EcatError
-        self._ecx_contextt.DCtO = 0
-        self._ecx_contextt.DCl = 0
         self._ecx_contextt.DCtime = &self._ec_DCtime
         self._ecx_contextt.SMcommtype = &self._ec_SMcommtype[0]
         self._ecx_contextt.PDOassign = &self._ec_PDOassign[0]
@@ -161,6 +159,7 @@ cdef class CdefMaster:
         self._ecx_contextt.eepSM = &self._ec_SM
         self._ecx_contextt.eepFMMU = &self._ec_FMMU
         self._ecx_contextt.FOEhook = NULL
+        self._ecx_contextt.manualstatechange = 0
         
         self.slaves = []
         
