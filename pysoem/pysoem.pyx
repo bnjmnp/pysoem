@@ -537,7 +537,57 @@ cdef class CdefSlave:
         cdef int result = cpysoem.ecx_writeeeprom(self._ecx_contextt, self._pos, word_address, tmp, timeout)
         if not result > 0:
             raise EepromError('EEPROM write error')
-            
+
+    def foe_write(self, filename, password, psize, data, timeout = 200000):
+        """ Write given data to device using FoE
+
+        Args:
+            filename (string): name of the target file
+            password (int): password for target file
+            psize (int): size of file
+            data (bytes): data
+            timeout (int): Timeout value in us
+        """
+
+        # error handling
+        if self._ecx_contextt == NULL:
+            raise UnboundLocalError()
+
+        cdef int result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, psize, <unsigned char*>data, timeout)
+        return result
+
+    def foe_read(self, filename, password, size, timeout = 200000):
+        """ Read given filename from device using FoE
+
+        Args:
+            filename (string): name of the target file
+            password (int): password for target file
+            size (int): maximum file size
+            timeout (int): Timeout value in us
+        """
+        if self._ecx_contextt == NULL:
+            raise UnboundLocalError()
+
+        # prepare call of c function
+        cdef unsigned char* pbuf
+        cdef int size_inout
+        pbuf = <unsigned char*>PyMem_Malloc((size)*sizeof(unsigned char))
+        size_inout = size
+
+        cdef int result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, filename.encode('utf8'), password, &size_inout, pbuf, timeout)
+
+        # error handling
+        cdef cpysoem.ec_errort err
+        if cpysoem.ecx_poperror(self._ecx_contextt, &err):
+            PyMem_Free(pbuf)
+            self._raise_exception(&err)
+
+        # return data
+        try:
+            return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
+        finally:
+            PyMem_Free(pbuf)
+
     cdef _raise_exception(self, cpysoem.ec_errort* err):
         if err.Etype == cpysoem.EC_ERR_TYPE_SDO_ERROR:
             raise SdoError(err.Slave,
