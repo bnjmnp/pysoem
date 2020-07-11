@@ -328,7 +328,7 @@ class PySoemTestPdo(unittest.TestCase):
         tx_map_obj_bytes = struct.pack(pack_fmt, len(tx_map_obj), *tx_map_obj)
         el1259.sdo_write(0x1c13, 0, tx_map_obj_bytes, True)
 
-        el1259.dc_sync(1, 10_000_000)
+        el1259.dc_sync(1, 10000000)
 
     def test_io_toggle(self):
         """Toggle every output and see if the "Ouput State" in the input changes accordingly"""
