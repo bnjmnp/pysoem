@@ -16,7 +16,6 @@ Features
 
 Todo
 
-* FoE
 * EoE
 
 Beware that real-time applications need some special considerations.
@@ -62,6 +61,14 @@ Please have a look at the examples on GitHub.
 
 Changes
 -------
+
+v0.1.1
+^^^^^^^
+* Introduces FoE
+
+v0.1.0
+^^^^^^^
+* Update of the underlying SOEM
 
 v0.0.18
 ^^^^^^^
