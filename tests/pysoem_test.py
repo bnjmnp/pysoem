@@ -43,7 +43,7 @@ class PySoemTestEnvironment:
         self._ch_thread_stop_event = threading.Event()
         self._actual_wkc = 0
 
-        self.SlaveSet = collections.namedtuple('SlaveSet', 'name product_code config_func')
+        self.SlaveSet = collections.namedtuple('SlaveSet', 'name vendor_id product_code config_func')
 
         self.el3002_config_func = None
         self.el1259_config_func = None
@@ -51,21 +51,24 @@ class PySoemTestEnvironment:
 
     def setup(self):
 
-        self._expected_slave_layout = {0: self.SlaveSet('EK1100', self.EK1100_PRODUCT_CODE, None),
-                                       1: self.SlaveSet('EL3002', self.EL3002_PRODUCT_CODE, self.el3002_config_func),
-                                       2: self.SlaveSet('EL1259', self.EL1259_PRODUCT_CODE, self.el1259_config_func)}
+        self._expected_slave_layout = {
+            0: self.SlaveSet('XMC43-Test-Device', 0, 0x12783456, None),
+            1: self.SlaveSet('EK1100', self.BECKHOFF_VENDOR_ID, self.EK1100_PRODUCT_CODE, None),
+            2: self.SlaveSet('EL3002', self.BECKHOFF_VENDOR_ID, self.EL3002_PRODUCT_CODE, self.el3002_config_func),
+            3: self.SlaveSet('EL1259', self.BECKHOFF_VENDOR_ID, self.EL1259_PRODUCT_CODE, self.el1259_config_func),
+        }
         self._master.open(self._ifname)
 
         assert self._master.config_init(False) > 0
 
+        self._master.config_dc()
         for i, slave in enumerate(self._master.slaves):
-            assert slave.man == self.BECKHOFF_VENDOR_ID
+            assert slave.man == self._expected_slave_layout[i].vendor_id
             assert slave.id == self._expected_slave_layout[i].product_code
             slave.config_func = self._expected_slave_layout[i].config_func
             slave.is_lost = False
 
         self._master.config_map()
-
         assert self._master.state_check(pysoem.SAFEOP_STATE) == pysoem.SAFEOP_STATE
 
     def go_to_op_state(self):
@@ -77,13 +80,13 @@ class PySoemTestEnvironment:
         self._check_thread_handle.start()
 
         self._master.write_state()
-        for _ in range(40):
+        for _ in range(400):
             self._master.state_check(pysoem.OP_STATE, 50000)
             if self._master.state == pysoem.OP_STATE:
                 all_slaves_reached_op_state = True
                 break
-        self._master.in_op = True
         assert 'all_slaves_reached_op_state' in locals(), 'could not reach OP state'
+        self._master.in_op = True
 
     def teardown(self):
         self._pd_thread_stop_event.set()
@@ -188,7 +191,7 @@ class PySoemTestSdo(unittest.TestCase):
     def setUp(self):
         self._test_env = PySoemTestEnvironment()
         self._test_env.setup()
-        self._el1259 = self._test_env.get_slaves()[2]
+        self._el1259 = self._test_env.get_slaves()[3]
 
     def tearDown(self):
         self._test_env.teardown()
@@ -246,7 +249,7 @@ class PySoemTestSdo(unittest.TestCase):
         
         with self.assertRaises(pysoem.PacketError) as cm:
             self._el1259.sdo_read(0x1008, 0, 3).decode('utf-8')
-        self.assertEqual(3, cm.exception.slave_pos)
+        self.assertEqual(4, cm.exception.slave_pos)
         self.assertEqual(3, cm.exception.error_code)
         self.assertEqual('Data container too small for type', cm.exception.desc)
 
@@ -270,7 +273,7 @@ class PySoemTestSdoInfo(unittest.TestCase):
     def setUp(self):
         self._test_env = PySoemTestEnvironment()
         self._test_env.setup()
-        self._el1259 = self._test_env.get_slaves()[2]
+        self._el1259 = self._test_env.get_slaves()[3]
 
     def tearDown(self):
         self._test_env.teardown()
@@ -328,7 +331,7 @@ class PySoemTestPdo(unittest.TestCase):
         tx_map_obj_bytes = struct.pack(pack_fmt, len(tx_map_obj), *tx_map_obj)
         el1259.sdo_write(0x1c13, 0, tx_map_obj_bytes, True)
 
-        el1259.dc_sync(1, 10000000)
+        el1259.dc_sync(1, 1000000)
 
     def test_io_toggle(self):
         """Toggle every output and see if the "Ouput State" in the input changes accordingly"""
@@ -336,7 +339,7 @@ class PySoemTestPdo(unittest.TestCase):
         self._test_env.setup()
         self._test_env.go_to_op_state()
 
-        el1259 = self._test_env.get_slaves()[2]
+        el1259 = self._test_env.get_slaves()[3]
         output_len = len(el1259.output)
 
         tmp = bytearray([0 for _ in range(output_len)])
