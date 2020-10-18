@@ -33,6 +33,7 @@ class PySoemTestEnvironment:
     EL1259_PRODUCT_CODE = 0x04eb3052
 
     def __init__(self):
+        self._is_overlapping_enabled = None
         self._ifname = test_config.ifname
         self._master = pysoem.Master()
         self._master.in_op = False
@@ -49,7 +50,8 @@ class PySoemTestEnvironment:
         self.el1259_config_func = None
         self._expected_slave_layout = None
 
-    def setup(self):
+    def setup(self, overlapping_enable=False):
+        self._is_overlapping_enabled = overlapping_enable
 
         self._expected_slave_layout = {0: self.SlaveSet('EK1100', self.EK1100_PRODUCT_CODE, None),
                                        1: self.SlaveSet('EL3002', self.EL3002_PRODUCT_CODE, self.el3002_config_func),
@@ -64,7 +66,10 @@ class PySoemTestEnvironment:
             slave.config_func = self._expected_slave_layout[i].config_func
             slave.is_lost = False
 
-        self._master.config_map()
+        if self._is_overlapping_enabled:
+            self._master.config_overlap_map()
+        else:
+            self._master.config_map()
 
         assert self._master.state_check(pysoem.SAFEOP_STATE) == pysoem.SAFEOP_STATE
 
@@ -105,7 +110,10 @@ class PySoemTestEnvironment:
 
     def _processdata_thread(self):
         while not self._pd_thread_stop_event.is_set():
-            self._master.send_processdata()
+            if self._is_overlapping_enabled:
+                self._master.send_overlap_processdata()
+            else:
+                self._master.send_processdata()
             self._actual_wkc = self._master.receive_processdata(10000)
             time.sleep(0.01)
 
@@ -330,10 +338,16 @@ class PySoemTestPdo(unittest.TestCase):
 
         el1259.dc_sync(1, 10000000)
 
-    def test_io_toggle(self):
+    def test_io_toggle_legacy(self):
+        self.io_toggle(overlapping_enable=False)
+
+    def test_io_toggle_overlap(self):
+        self.io_toggle(overlapping_enable=True)
+
+    def io_toggle(self, overlapping_enable):
         """Toggle every output and see if the "Ouput State" in the input changes accordingly"""
         self._test_env.el1259_config_func = self.el1259_config_func
-        self._test_env.setup()
+        self._test_env.setup(overlapping_enable)
         self._test_env.go_to_op_state()
 
         el1259 = self._test_env.get_slaves()[2]
