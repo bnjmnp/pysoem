@@ -478,6 +478,7 @@ cdef class CdefSlave:
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
             if pbuf != std_buffer:
                 PyMem_Free(pbuf)
+            assert err.Slave == self._pos
             self._raise_exception(&err)
 
         try:
@@ -538,7 +539,7 @@ cdef class CdefSlave:
         if not result > 0:
             raise EepromError('EEPROM write error')
 
-    def foe_write(self, filename, password, psize, data, timeout = 200000):
+    def foe_write(self, filename, int password, bytes data, timeout = 200000):
         """ Write given data to device using FoE
 
         Args:
@@ -548,12 +549,19 @@ cdef class CdefSlave:
             data (bytes): data
             timeout (int): Timeout value in us
         """
-
         # error handling
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
-        cdef int result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, psize, <unsigned char*>data, timeout)
+        cdef int size = len(data)
+        cdef int result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
+        
+        # error handling
+        cdef cpysoem.ec_errort err
+        if cpysoem.ecx_poperror(self._ecx_contextt, &err):
+            assert err.Slave == self._pos
+            self._raise_exception(&err)
+
         return result
 
     def foe_read(self, filename, password, size, timeout = 200000):
@@ -580,6 +588,7 @@ cdef class CdefSlave:
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
             PyMem_Free(pbuf)
+            assert err.Slave == self._pos
             self._raise_exception(&err)
 
         # return data
