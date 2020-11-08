@@ -35,10 +35,10 @@ Linux
 Windows
 ^^^^^^^
 
-* Python 3
-* a 64-bit operating system
-* WinPcap
+* Python 3 / 64 Bit
+* `Npcap <https://nmap.org/npcap/>`_ [*]_ or `WinPcap <https://www.winpcap.org/>`_
 
+.. [*] Make sure you check "Install Npcap in WinPcap API-compatible Mode" during the install
 
 Installation
 ------------
