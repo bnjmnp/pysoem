@@ -13,6 +13,7 @@ Features
 * input process data read and output process data write
 * SDO read and write
 * EEPROM read and write
+* FoE read and write
 
 Todo
 
@@ -61,6 +62,11 @@ Please have a look at the examples on GitHub.
 
 Changes
 -------
+
+v1.0.0
+^^^^^^^
+* API change: remove the size parameter for `foe_write`
+* Introduces overlap map support
 
 v0.1.1
 ^^^^^^^
