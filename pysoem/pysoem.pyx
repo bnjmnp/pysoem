@@ -203,6 +203,7 @@ cdef class CdefMaster:
         cdef _CallbackData cd
         # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
         ret_val = cpysoem.ecx_config_map_group(&self._ecx_contextt, &self.io_map, 0)
+        # check for exceptions raised in the config functions
         for slave in self.slaves:
             cd = slave._cd
             if cd.exc_raised:
@@ -210,6 +211,37 @@ cdef class CdefMaster:
         logging.debug('io map size: {}'.format(ret_val))
         # sanity check
         assert(ret_val<=EC_IOMAPSIZE)
+        # raise an exception if one or more mailbox errors occured within ecx_config_map_group call
+        error_list = self._collect_mailbox_errors()
+        if len(error_list) > 0:
+            raise ConfigMapError(error_list)
+        return ret_val
+        
+    def config_overlap_map(self):
+        """Map all slaves PDOs to overlapping IO map.
+        
+        Returns:
+            int: IO map size (sum of all PDO in an out data)
+        """
+        cdef _CallbackData cd
+        # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
+        ret_val = cpysoem.ecx_config_overlap_map_group(&self._ecx_contextt, &self.io_map, 0)
+        # check for exceptions raised in the config functions
+        for slave in self.slaves:
+            cd = slave._cd
+            if cd.exc_raised:
+                raise cd.exc_info[0],cd.exc_info[1],cd.exc_info[2]
+        logging.debug('io map size: {}'.format(ret_val))
+        # sanity check
+        assert(ret_val<=EC_IOMAPSIZE)
+        # raise an exception if one or more mailbox errors occured within ecx_config_overlap_map_group call
+        error_list = self._collect_mailbox_errors()
+        if len(error_list) > 0:
+            raise ConfigMapError(error_list)
+
+        return ret_val
+
+    def _collect_mailbox_errors(self):
         # collect SDO or mailbox errors that occurred during PDO configuration read in ecx_config_map_group
         error_list = []
         cdef cpysoem.ec_errort err
@@ -228,9 +260,7 @@ cdef class CdefMaster:
                                               err.ErrorCode))
             else:
                 error_list.append(Exception('unexpected error'))
-        if len(error_list) > 0:
-            raise ConfigMapError(error_list)
-        return ret_val
+        return error_list
         
     def config_dc(self):
         """Locate DC slaves, measure propagation delays.
@@ -295,6 +325,14 @@ cdef class CdefMaster:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
         return cpysoem.ecx_send_processdata(&self._ecx_contextt)
+
+    def send_overlap_processdata(self):
+        """Transmit overlap processdata to slaves.
+        
+        Returns:
+            int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
+        """
+        return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
     
     def receive_processdata(self, timeout=2000):
         return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
