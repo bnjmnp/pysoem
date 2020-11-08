@@ -97,6 +97,9 @@ class PySoemTestEnvironment:
     def get_slave_for_foe_testing(self):
         return self._master.slaves[0]  # the XMC device
 
+    def get_slave_without_foe_support(self):
+        return self._master.slaves[2]  # the EL3002
+
     def _processdata_thread(self):
         while not self._pd_thread_stop_event.is_set():
             self._master.send_processdata()

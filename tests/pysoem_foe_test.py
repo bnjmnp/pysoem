@@ -1,6 +1,9 @@
 
+import pytest
+import pysoem
 
-def test_foe(pysoem_environment):
+
+def test_foe_good(pysoem_environment):
     pysoem_environment.setup()
     test_slave = pysoem_environment.get_slave_for_foe_testing()
 
@@ -9,8 +12,28 @@ def test_foe(pysoem_environment):
             random_data = file.read()
 
         # write
-        test_slave.foe_write('test.bin', 0, len(random_data), random_data)
+        test_slave.foe_write('test.bin', 0, random_data)
         # read back
         reread_data = test_slave.foe_read('test.bin', 0, 8192)
         # and check if the reread data is the same as the written data
         assert reread_data[:len(random_data)] == random_data
+
+
+def test_foe_fails(pysoem_environment):
+    pysoem_environment.setup()
+    test_slave = pysoem_environment.get_slave_without_foe_support()
+
+    # expect foe READ to fail
+    with pytest.raises(pysoem.MailboxError) as excinfo:
+        test_slave.foe_read('test.bin', 0, 8192)
+
+    assert excinfo.value.error_code == 2
+    assert excinfo.value.desc == 'The mailbox protocol is not supported'
+
+    # expect foe WRITE to fail
+    with pytest.raises(pysoem.MailboxError) as excinfo:
+        test_slave.foe_write('test.bin', 0, bytes(32))
+
+    assert excinfo.value.error_code == 2
+    assert excinfo.value.desc == 'The mailbox protocol is not supported'
+
