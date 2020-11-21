@@ -1,6 +1,10 @@
 PySOEM
 ======
 
+.. image:: https://badges.gitter.im/pysoem/pysoem.svg
+   :alt: Join the chat at https://gitter.im/pysoem/pysoem
+   :target: https://gitter.im/pysoem/pysoem?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 PySOEM is a Cython wrapper for the Simple Open EtherCAT Master Library (https://github.com/OpenEtherCATsociety/SOEM).
 
 Introduction
