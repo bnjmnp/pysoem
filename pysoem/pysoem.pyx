@@ -98,7 +98,9 @@ class Master(CdefMaster):
     """Representing a logical EtherCAT master device.
     
     For each network interface you can have a Master instance.
-    
+
+    Attributes:
+        slaves: Gets a list of the slaves found during config_init. The slave instances are of type :class:`CdefSlave`.
     """
     pass
     
@@ -109,7 +111,6 @@ cdef class CdefMaster:
     Please do not use this class directly, but the class Master instead.
     Master is a typical Python object, with all it's benefits over
     cdef classes. For example you can add new attributes dynamically.
-    
     """
     DEF EC_MAXSLAVE = 200
     DEF EC_MAXGROUP = 1
@@ -184,7 +185,7 @@ cdef class CdefMaster:
             usetable (bool): True when using configtable to init slaves, False otherwise
         
         Returns:
-            int: Workcounter of slave discover datagram = number of slaves found, -1 when no slave is connected
+            int: Working Counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
         ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
         if ret_val > 0:
@@ -286,12 +287,12 @@ cdef class CdefMaster:
         return cpysoem.ecx_readstate(&self._ecx_contextt)
         
     def write_state(self):
-        """Write all slaves state
+        """Write all slaves state.
         
         The function does not check if the actual state is changed.
         
         Returns:
-            int: Workcounter or EC_NOFRAME
+            int: Workint counter or EC_NOFRAME
         """
         return cpysoem.ecx_writestate(&self._ecx_contextt, 0)
         
@@ -335,6 +336,17 @@ cdef class CdefMaster:
         return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
     
     def receive_processdata(self, timeout=2000):
+        """Receive processdata from slaves.
+
+        Second part from send_processdata().
+        Received datagrams are recombined with the processdata with help from the stack.
+        If a datagram contains input processdata it copies it to the processdata structure.
+
+        Args:
+            timeout (int): Timeout in us.
+        Returns
+            int: Working Counter
+        """
         return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
         
     def _get_slave(self, int pos):
@@ -348,6 +360,7 @@ cdef class CdefMaster:
         return ethercat_slave
         
     def _get_state(self):
+        """Can be used to check if all slaves are in Operational state."""
         return self._ec_slave[0].state
 
     def _set_state(self, value):
@@ -356,6 +369,7 @@ cdef class CdefMaster:
     state = property(_get_state, _set_state)
     
     def _get_expected_wkc(self):
+        """Calculates the expected Working Counter"""
         return (self._ec_group[0].outputsWKC * 2) + self._ec_group[0].inputsWKC
         
     expected_wkc  = property(_get_expected_wkc)
@@ -494,6 +508,20 @@ cdef class CdefSlave:
             cpysoem.ecx_dcsync01(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync1_cycle_time, sync0_shift_time) 
 
     def sdo_read(self, index, uint8_t subindex, int size=0, ca=False):
+        """Read a CoE object.
+
+        When leaving out the size argument, objects up to 256 bytes can read.
+        If the object are expected to be bigger, increase the size argument.
+
+        Args:
+            index (int): Index of the object.
+            subindex (int): Subindex of the object.
+            size (int): The size of the reading buffer, if the size is left out or set to zero, a buffer size of 256 bytes is used.
+            ca (bool): complete access
+
+        Returns:
+            bytes: The content of the sdo object.
+        """
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
         
@@ -525,7 +553,19 @@ cdef class CdefSlave:
             if pbuf != std_buffer:
                 PyMem_Free(pbuf)
             
-    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False):            
+    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False):
+        """Write to a CoE object.
+        
+        Args:
+            index (int): Index of the object.
+            subindex (int): Subindex of the object.
+            data (bytes): data to be written to the object
+            ca (bool): complete access
+
+        Raises:
+            EepromError: if write fails
+            AttributeError: if data size is not 2
+        """          
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca, size, <unsigned char*>data, self.EC_TIMEOUTRXM)
         
@@ -653,26 +693,33 @@ cdef class CdefSlave:
             raise Exception('unexpected error, Etype: {}'.format(err.Etype))
     
     def _get_name(self):
+        """Name of the slave, read out from the slaves SII during config_init."""
         return (<bytes>self._ec_slave.name).decode('utf8')
         
     name = property(_get_name)
     
     def _get_eep_man(self):
+        """Vendor ID of the slave, read out from the slaves SII during config_init."""
         return self._ec_slave.eep_man
         
     man = property(_get_eep_man)
     
     def _get_eep_id(self):
+        """Product Code of the slave, read out from the slaves SII during config_init."""
         return self._ec_slave.eep_id
         
     id = property(_get_eep_id)
     
     def _get_eep_rev(self):
+        """Revision Number of the slave, read out from the slaves SII during config_init."""
         return self._ec_slave.eep_rev
         
     rev = property(_get_eep_rev)
         
     def _get_PO2SOconfig(self):
+        """Slaves callback function that is called during config_init.
+        
+        When the state changes from Pre-Operational state to Operational state."""
         return <object>self._ec_slave.user
     
     def _set_PO2SOconfig(self, value):
