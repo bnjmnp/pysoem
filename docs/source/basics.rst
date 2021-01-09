@@ -24,8 +24,13 @@ Like in the example from the beginning, accessing a device in a network is done 
 
    master.close()
 
-With the device reference you can access some information that was read out from the device during :py:func:`pysoem.Master.conig_init`.
-The devices name:
+With the device reference you can access some information that was read out from the device during :py:func:`pysoem.Master.config_init`.
+For example the devices names:
+
+.. code-block:: python
+
+    print(device_foo.name)
+    print(device_bar.name)
 
 You can also read and wirte CoE objects, and read input process data and wirte output process data, with the device reference.
 This will be covered in the next sections.

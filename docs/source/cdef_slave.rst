@@ -1,6 +1,6 @@
-=====
+=========
 CdefSlave
-=====
+=========
 
 .. autoclass:: pysoem.CdefSlave
    :members:
