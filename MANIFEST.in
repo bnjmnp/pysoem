@@ -3,4 +3,5 @@ include README.rst
 include examples/*.py
 include pysoem/cpysoem.pxd
 include pysoem/pysoem.pyx
+include pysoem/pysoem.c
 recursive-include soem *.h *.c
