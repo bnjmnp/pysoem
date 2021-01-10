@@ -4,7 +4,14 @@ import codecs
 import re
 
 from setuptools import setup, find_packages, Extension
-from Cython.Build import cythonize
+
+try:
+    import Cython
+except ImportError:
+    USE_CYTHON = False
+else:
+    from Cython.Build import cythonize
+    USE_CYTHON = True
 
 
 soem_sources = []
@@ -51,9 +58,11 @@ def readme():
         
 here = os.path.abspath(os.path.dirname(__file__))
 
+
 def read(*parts):
     with codecs.open(os.path.join(here, *parts), 'r') as fp:
         return fp.read()
+
 
 def find_version(*file_paths):
     version_file = read(*file_paths)
@@ -63,7 +72,24 @@ def find_version(*file_paths):
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
-    
+
+ext = '.pyx' if USE_CYTHON else '.c'
+
+extensions = [
+    Extension(
+        'pysoem.pysoem',
+        ['pysoem/pysoem'+ext] + soem_sources,
+        define_macros=soem_macros,
+        libraries=soem_libs,
+        library_dirs=soem_lib_dirs,
+        include_dirs=['./pysoem'] + soem_inc_dirs
+    )
+]
+
+if USE_CYTHON:
+    from Cython.Build import cythonize
+    extensions = cythonize(extensions)
+
 setup(name='pysoem',
       version=find_version("pysoem", "__init__.py"),
       description='Cython wrapper for the SOEM Library',
@@ -72,12 +98,7 @@ setup(name='pysoem',
       url='https://github.com/bnjmnp/pysoem',
       license='GPLv2',
       long_description=readme(),
-      ext_modules=cythonize([Extension('pysoem.pysoem',
-                                       ['pysoem/pysoem.pyx'] + soem_sources,
-                                       define_macros=soem_macros,
-                                       libraries=soem_libs,
-                                       library_dirs=soem_lib_dirs,
-                                       include_dirs=['./pysoem'] + soem_inc_dirs)]),
+      ext_modules=extensions,
       packages=['pysoem'],
       classifiers=[
         'Development Status :: 2 - Pre-Alpha',

@@ -28,7 +28,6 @@ Linux
 ^^^^^
 
 * Python 3
-* Cython (installed into your Python distribution)
 * GCC (installed on your machine)
 * Python scripts that use PySOEM must be executed under administrator privileges
 
@@ -63,10 +62,14 @@ Please have a look at the examples on GitHub.
 Changes
 -------
 
-v1.0.0
+v1.0.1
 ^^^^^^^
 * API change: remove the size parameter for `foe_write`
 * Introduces overlap map support
+
+v1.0.0
+^^^^^^^
+* No Cython required to install the package from the source distribution
 
 v0.1.1
 ^^^^^^^
