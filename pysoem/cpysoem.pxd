@@ -1,8 +1,7 @@
-# Copyright 2018 Benjamin Partzsch
+# Copyright 2021 Benjamin Partzsch
 #
-# This file is part of the PySOEM project and licenced under the
-# GNU General Public License version 2. Check the license terms in the LICENSE
-# file.
+# This file is part of the PySOEM project and licenced under the MIT license.
+# Check the license terms in the LICENSE file.
 #
 # PySOEM is a Cython wrapper for the Simple Open EtherCAT Master (SOEM) library
 # (https://github.com/OpenEtherCATsociety/SOEM).
