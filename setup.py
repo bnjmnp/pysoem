@@ -100,6 +100,9 @@ setup(name='pysoem',
       long_description=readme(),
       ext_modules=extensions,
       packages=['pysoem'],
+      project_urls={
+        'Documentation': 'https://pysoem.readthedocs.io',
+      },
       classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'License :: OSI Approved :: MIT License',
@@ -108,6 +111,6 @@ setup(name='pysoem',
         'Programming Language :: C',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: Implementation :: CPython',
-        'Topic :: Scientific/Engineering'
+        'Topic :: Scientific/Engineering',
       ]
 )

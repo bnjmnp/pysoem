@@ -2,8 +2,8 @@
 Basics
 ======
 
-Obtaining an Device Object
---------------------------
+Obtaining a Device Instance
+---------------------------
 
 Like in the example from the beginning, accessing a device in a network is done by a Masters :py:attr:`pysoem.Master.slaves` list.
 

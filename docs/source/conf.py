@@ -14,18 +14,21 @@ import os
 
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
-if not on_rtd:
+if on_rtd:
+    import pysoem
+    release = pysoem.__version__
+else:
     import sys
     sys.path.insert(0, os.path.abspath('../../'))
+    release = '0.0.0'
 
 
 # -- Project information -----------------------------------------------------
 
 project = 'PySOEM'
-copyright = '2020, Benjamin Partzsch'
+copyright = '2021, Benjamin Partzsch'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------

@@ -80,9 +80,6 @@ def find_adapters():
 def al_status_code_to_string(code):
     """Look up text string that belongs to AL status code.
     
-    This docstring bases on the comment for function ec_ALstatuscode2string
-    in SOEM source code, see https://github.com/OpenEtherCATsociety/SOEM
-    
     Args:
         arg1 (uint16): AL status code as defined in EtherCAT protocol.
     
@@ -359,7 +356,10 @@ cdef class CdefMaster:
         return ethercat_slave
         
     def _get_state(self):
-        """Can be used to check if all slaves are in Operational state."""
+        """Can be used to check if all slaves are in Operational state, or to request a new state for all slaves.
+
+        Make sure to call write_state(), once a new state for all slaves was set.
+        """
         return self._ec_slave[0].state
 
     def _set_state(self, value):
@@ -374,6 +374,9 @@ cdef class CdefMaster:
     expected_wkc  = property(_get_expected_wkc)
     
     def _get_dc_time(self):
+        """DC time in ns required to synchronize the EtherCAT cycle with SYNC0 cycles.
+
+        Note EtherCAT cycle here means the call of send_processdata and receive_processdata."""
         return self._ec_DCtime
         
     dc_time = property(_get_dc_time)
@@ -500,6 +503,15 @@ cdef class CdefSlave:
         self._cd = _CallbackData()
 
     def dc_sync(self, act, sync0_cycle_time, sync0_shift_time=0, sync1_cycle_time=None):
+        """Activate or deactivate SYNC pulses at the slave.
+
+         Args:
+            act (bool): True = active, False = deactivate
+            sync0_cycle_time (int): Cycltime SYNC0 in ns
+            sync0_shift_time (int): Optional SYNC0 shift time in ns
+            sync1_cycle_time (int): Optional cycltime for SYNC1 in ns. This time is a delta time in relation to SYNC0.
+                                    If CylcTime1 = 0 then SYNC1 fires a the same time as SYNC0.
+        """
     
         if sync1_cycle_time is None:
             cpysoem.ecx_dcsync0(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync0_shift_time)
@@ -509,17 +521,22 @@ cdef class CdefSlave:
     def sdo_read(self, index, uint8_t subindex, int size=0, ca=False):
         """Read a CoE object.
 
-        When leaving out the size argument, objects up to 256 bytes can read.
-        If the object are expected to be bigger, increase the size argument.
+        When leaving out the size parameter, objects up to 256 bytes can be read.
+        If the size of the object is expected to be bigger, increase the size parameter.
 
         Args:
             index (int): Index of the object.
             subindex (int): Subindex of the object.
-            size (int): The size of the reading buffer, if the size is left out or set to zero, a buffer size of 256 bytes is used.
-            ca (bool): complete access
+            size (:obj:`int`, optioinal): The size of the reading buffer.
+            ca (:obj:`bool`, optional): complete access
 
         Returns:
             bytes: The content of the sdo object.
+
+        Raises:
+            SdoError: if write fails, the exception includes the SDO abort code  
+            MailboxError: on errors in the mailbox protocoll
+            PacketError: on packet level error
         """
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
@@ -559,11 +576,12 @@ cdef class CdefSlave:
             index (int): Index of the object.
             subindex (int): Subindex of the object.
             data (bytes): data to be written to the object
-            ca (bool): complete access
+            ca (:obj:`bool`, optional): complete access
 
         Raises:
-            EepromError: if write fails
-            AttributeError: if data size is not 2
+            SdoError: if write fails, the exception includes the SDO abort code  
+            MailboxError: on errors in the mailbox protocoll
+            PacketError: on packet level error
         """          
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca, size, <unsigned char*>data, self.EC_TIMEOUTRXM)
@@ -573,6 +591,10 @@ cdef class CdefSlave:
             self._raise_exception(&err)
         
     def write_state(self):
+        """Write slave state.
+
+        Note: The function does not check if the actual state is changed.
+        """
         return cpysoem.ecx_writestate(self._ecx_contextt, self._pos)
         
     def state_check(self, int expected_state, timeout=2000):
@@ -586,11 +608,13 @@ cdef class CdefSlave:
         
     def eeprom_read(self, int word_address, timeout=20000):
         """Read 4 byte from EEPROM
-        
+
+        Default timeout: 20000 us
+
         Args:
             word_address (int): EEPROM address to read from
-            timeout (int): Timeout value in us
-        
+            timeout (:obj:`int`, optional): Timeout value in us
+
         Returns:
             bytes: EEPROM data
         """
@@ -599,11 +623,14 @@ cdef class CdefSlave:
         
     def eeprom_write(self, int word_address, bytes data, timeout=20000):
         """Write 2 byte (1 word) to EEPROM
+
+        Default timeout: 20000 us
         
         Args:
             word_address (int): EEPROM address to write to
             data (bytes): data (only 2 bytes are allowed)
-            timeout (int): Timeout value in us
+            timeout (:obj:`int`, optional): Timeout value in us
+
         Raises:
             EepromError: if write fails
             AttributeError: if data size is not 2
@@ -622,7 +649,6 @@ cdef class CdefSlave:
         Args:
             filename (string): name of the target file
             password (int): password for target file
-            psize (int): size of file
             data (bytes): data
             timeout (int): Timeout value in us
         """
@@ -789,6 +815,10 @@ cdef class CdefSlave:
 
 
 cdef class CdefCoeObject:
+    """Object info for objects in the object dictionary.
+
+    Do not create instances of this class, you get instances of this type by the CdefSlave.od property.
+    """
     cdef cpysoem.ecx_contextt* _ecx_context
     cdef cpysoem.ec_ODlistt* _ex_odlist
     cdef int _item

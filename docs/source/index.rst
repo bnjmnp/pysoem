@@ -50,11 +50,4 @@ With this script the name of every device in the network will be printed.
    Master <master.rst>
    CdefSlave <cdef_slave.rst>
    Exceptions <exceptions.rst>
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   Helpers <helpers.rst>
