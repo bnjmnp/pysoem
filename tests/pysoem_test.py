@@ -270,6 +270,32 @@ class PySoemTestSdo(unittest.TestCase):
             self.assertEqual(ex1.exception.desc, 'Data cannot be transferred or stored to the application '
                                                  'because of the present device state')
 
+    def test_read_timeout(self):
+        """Test timeout
+
+        TODO: test an object that really errors when the timeout is to low
+        """
+        master = self._test_env.get_master()
+        old_sdo_read_timeout = master.sdo_read_timeout
+        self.assertEqual(old_sdo_read_timeout, 700000)
+        master.sdo_read_timeout = 0
+        self.assertEqual(master.sdo_read_timeout, 0)
+        master.sdo_read_timeout = old_sdo_read_timeout
+        self.assertEqual(master.sdo_read_timeout, 700000)
+
+    def test_write_timeout(self):
+        """Test timeout
+
+        TODO: test an object that really errors when the timeout is to low
+        """
+        master = self._test_env.get_master()
+        old_sdo_write_timeout = master.sdo_write_timeout
+        self.assertEqual(old_sdo_write_timeout, 700000)
+        master.sdo_write_timeout = 0
+        self.assertEqual(master.sdo_write_timeout, 0)
+        master.sdo_write_timeout = old_sdo_write_timeout
+        self.assertEqual(master.sdo_write_timeout, 700000)
+
 
 def get_obj_from_od(od, index):
     return next(obj for obj in od if obj.index == index)

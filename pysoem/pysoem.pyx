@@ -62,6 +62,10 @@ cpdef enum ec_datatype:
     ECT_BIT7            = 0x0036,
     ECT_BIT8            = 0x0037
 
+cdef struct CdefMasterSettings:
+    int* sdo_read_timeout
+    int* sdo_write_timeout
+
 def find_adapters():
     """Create a list of available network adapters.
     
@@ -97,6 +101,8 @@ class Master(CdefMaster):
 
     Attributes:
         slaves: Gets a list of the slaves found during config_init. The slave instances are of type :class:`CdefSlave`.
+        sdo_read_timeout: timeout for SDO read access for all slaves connected
+        sdo_write_timeout: timeout for SDO write access for all slaves connected
     """
     pass
     
@@ -134,6 +140,9 @@ cdef class CdefMaster:
 
     cdef cpysoem.ecx_contextt _ecx_contextt
     cdef char io_map[EC_IOMAPSIZE]
+    cdef CdefMasterSettings _settings
+    cdef public int sdo_read_timeout
+    cdef public int sdo_write_timeout
     
     def __cinit__(self):
         self._ecx_contextt.port = &self._ecx_port
@@ -159,6 +168,10 @@ cdef class CdefMaster:
         self._ecx_contextt.manualstatechange = 0
         
         self.slaves = []
+        self.sdo_read_timeout = 700000
+        self.sdo_write_timeout = 700000
+        self._settings.sdo_read_timeout = &self.sdo_read_timeout
+        self._settings.sdo_write_timeout = &self.sdo_write_timeout
         
     def open(self, ifname):
         """Initialize and open network interface.
@@ -353,6 +366,7 @@ cdef class CdefMaster:
         ethercat_slave = CdefSlave(pos+1)
         ethercat_slave._ecx_contextt = &self._ecx_contextt
         ethercat_slave._ec_slave = &self._ec_slave[pos+1] # +1 as _ec_slave[0] is reserved
+        ethercat_slave._the_masters_settings = &self._settings
         return ethercat_slave
         
     def _get_state(self):
@@ -494,6 +508,7 @@ cdef class CdefSlave:
     
     cdef cpysoem.ecx_contextt* _ecx_contextt
     cdef cpysoem.ec_slavet* _ec_slave
+    cdef CdefMasterSettings* _the_masters_settings
     cdef _pos # keep in mind that first slave has pos 1  
     cdef public _CallbackData _cd
     cdef cpysoem.ec_ODlistt _ex_odlist
@@ -554,8 +569,9 @@ cdef class CdefSlave:
         if pbuf == NULL:
             raise MemoryError()
         
-        cdef int result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca, &size_inout, pbuf, self.EC_TIMEOUTRXM)
-        
+        cdef int result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca,
+                                              &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
+
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
             if pbuf != std_buffer:
@@ -584,7 +600,8 @@ cdef class CdefSlave:
             PacketError: on packet level error
         """          
         cdef int size = len(data)
-        cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca, size, <unsigned char*>data, self.EC_TIMEOUTRXM)
+        cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca,
+                                               size, <unsigned char*>data, self._the_masters_settings.sdo_write_timeout[0])
         
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
