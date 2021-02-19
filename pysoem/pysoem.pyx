@@ -660,12 +660,12 @@ cdef class CdefSlave:
         if not result > 0:
             raise EepromError('EEPROM write error')
 
-    def foe_write(self, filename, int password, bytes data, timeout = 200000):
+    def foe_write(self, filename, password, bytes data, timeout = 200000):
         """ Write given data to device using FoE
 
         Args:
             filename (string): name of the target file
-            password (int): password for target file
+            password (int): password for the target file, accepted range: 0 to 2^32 - 1
             data (bytes): data
             timeout (int): Timeout value in us
         """
