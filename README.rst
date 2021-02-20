@@ -62,6 +62,16 @@ Please have a look at the examples on GitHub.
 Changes
 -------
 
+v1.0.3
+^^^^^^^
+* Fix the FoE password issue
+
+v1.0.2
+^^^^^^^
+* Licence change to MIT licence
+* Introduces configurable timeouts for SDO read and SDO write
+* Improved API docs
+  
 v1.0.1
 ^^^^^^^
 * API change: remove the size parameter for `foe_write`
