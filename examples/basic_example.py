@@ -125,7 +125,12 @@ class BasicExample:
         check_thread.start()
         proc_thread = threading.Thread(target=self._processdata_thread)
         proc_thread.start()
-
+        
+        # send one valid process data to make outputs in slaves happy
+        self._master.send_processdata()
+        self._master.receive_processdata(2000)
+        # request OP state for all slaves
+        
         self._master.write_state()
 
         all_slaves_reached_op_state = False
