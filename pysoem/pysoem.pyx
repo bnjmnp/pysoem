@@ -23,6 +23,7 @@ from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 from libc.string cimport memcpy
 
+logger = logging.getLogger(__name__)
 
 NONE_STATE = cpysoem.EC_STATE_NONE
 INIT_STATE = cpysoem.EC_STATE_INIT
@@ -218,7 +219,7 @@ cdef class CdefMaster:
             cd = slave._cd
             if cd.exc_raised:
                 raise cd.exc_info[0],cd.exc_info[1],cd.exc_info[2]
-        logging.debug('io map size: {}'.format(ret_val))
+        logger.debug('io map size: {}'.format(ret_val))
         # sanity check
         assert(ret_val<=EC_IOMAPSIZE)
         # raise an exception if one or more mailbox errors occured within ecx_config_map_group call
@@ -241,7 +242,7 @@ cdef class CdefMaster:
             cd = slave._cd
             if cd.exc_raised:
                 raise cd.exc_info[0],cd.exc_info[1],cd.exc_info[2]
-        logging.debug('io map size: {}'.format(ret_val))
+        logger.debug('io map size: {}'.format(ret_val))
         # sanity check
         assert(ret_val<=EC_IOMAPSIZE)
         # raise an exception if one or more mailbox errors occured within ecx_config_overlap_map_group call
@@ -814,7 +815,7 @@ cdef class CdefSlave:
     is_lost = property(_get_is_lost, _set_is_lost)
     
     def _get_od(self):
-        logging.debug('ecx_readODlist()')
+        logger.debug('ecx_readODlist()')
         cdef int result = cpysoem.ecx_readODlist(self._ecx_contextt, self._pos, &self._ex_odlist)
         if not result > 0:
             raise SdoInfoError('Sdo List Info read failed')
@@ -851,7 +852,7 @@ cdef class CdefCoeObject:
     def _read_description(self):
         cdef int result
         if not self._is_description_read:
-          logging.debug('ecx_readODdescription()')
+          logger.debug('ecx_readODdescription()')
           result = cpysoem.ecx_readODdescription(self._ecx_context, self._item, self._ex_odlist)
           if not result > 0:
               raise SdoInfoError('Sdo Object Info read failed')
@@ -860,7 +861,7 @@ cdef class CdefCoeObject:
     def _read_entries(self):
         cdef int result
         if not self._are_entries_read:
-            logging.debug('ecx_readOE()')
+            logger.debug('ecx_readOE()')
             result = cpysoem.ecx_readOE(self._ecx_context, self._item, self._ex_odlist, &self._ex_oelist)
             if not result > 0:
                 raise SdoInfoError('Sdo ObjectEntry Info read failed')
