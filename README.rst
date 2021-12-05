@@ -51,12 +51,21 @@ or
 
   pip install pysoem
 
-Consider using a `virtualenv <https://virtualenv.pypa.io/en/stable/>`_.
+Consider using a `virtualenv <https://virtualenv.pypa.io>`_.
 
 
 Usage
 -----
-Please have a look at the examples on GitHub.
+Although there are some pieces missing, the documentation is hosted on "Read the Docs" at: `pysoem.readthedocs.io <https://pysoem.readthedocs.io>`_.
+
+Please also have a look at `the examples on GitHub <https://github.com/bnjmnp/pysoem/tree/master/examples>`_.
+
+Contribution
+------------
+
+Any contributions are welcome and highly appreciated.
+Let's discuss any (major) API change, or large piles of new code first.
+Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is one communication channel option.
 
 
 Changes
