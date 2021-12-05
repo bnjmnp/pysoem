@@ -21,6 +21,7 @@ class PySoemTestEnvironment:
     EL1259_PRODUCT_CODE = 0x04eb3052
 
     def __init__(self, ifname):
+        self._is_overlapping_enabled = None
         self._ifname = ifname
         self._master = pysoem.Master()
         self._master.in_op = False
@@ -37,7 +38,30 @@ class PySoemTestEnvironment:
         self.el1259_config_func = None
         self._expected_slave_layout = None
 
-    def setup(self):
+    def config_init(self):
+        self._master.open(self._ifname)
+        assert self._master.config_init(False) > 0
+
+    def go_to_preop_state(self):
+        self._master.state_check(pysoem.INIT_STATE, 50000)
+        assert self._master.state == pysoem.SAFEOP_STATE
+
+        self._proc_thread_handle = threading.Thread(target=self._processdata_thread)
+        self._proc_thread_handle.start()
+        self._check_thread_handle = threading.Thread(target=self._check_thread)
+        self._check_thread_handle.start()
+
+        self._master.write_state()
+        for _ in range(400):
+            self._master.state_check(pysoem.OP_STATE, 50000)
+            if self._master.state == pysoem.OP_STATE:
+                all_slaves_reached_op_state = True
+                break
+        assert 'all_slaves_reached_op_state' in locals(), 'could not reach OP state'
+        self._master.in_op = True
+
+    def config_map(self, overlapping_enable=False):
+        self._is_overlapping_enabled = overlapping_enable
 
         self._expected_slave_layout = {
             0: self.SlaveSet('XMC43-Test-Device', 0, 0x12783456, None),
@@ -45,10 +69,6 @@ class PySoemTestEnvironment:
             2: self.SlaveSet('EL3002', self.BECKHOFF_VENDOR_ID, self.EL3002_PRODUCT_CODE, self.el3002_config_func),
             3: self.SlaveSet('EL1259', self.BECKHOFF_VENDOR_ID, self.EL1259_PRODUCT_CODE, self.el1259_config_func),
         }
-        self._master.open(self._ifname)
-
-        assert self._master.config_init(False) > 0
-
         self._master.config_dc()
         for i, slave in enumerate(self._master.slaves):
             assert slave.man == self._expected_slave_layout[i].vendor_id
@@ -56,17 +76,22 @@ class PySoemTestEnvironment:
             slave.config_func = self._expected_slave_layout[i].config_func
             slave.is_lost = False
 
-        self._master.config_map()
+        if self._is_overlapping_enabled:
+            self._master.config_overlap_map()
+        else:
+            self._master.config_map()
         assert self._master.state_check(pysoem.SAFEOP_STATE) == pysoem.SAFEOP_STATE
 
     def go_to_op_state(self):
-        self._master.state = pysoem.OP_STATE
+        self._master.state_check(pysoem.SAFEOP_STATE, 50000)
+        assert self._master.state == pysoem.SAFEOP_STATE
 
         self._proc_thread_handle = threading.Thread(target=self._processdata_thread)
         self._proc_thread_handle.start()
         self._check_thread_handle = threading.Thread(target=self._check_thread)
         self._check_thread_handle.start()
 
+        self._master.state = pysoem.OP_STATE
         self._master.write_state()
         for _ in range(400):
             self._master.state_check(pysoem.OP_STATE, 50000)
@@ -94,6 +119,9 @@ class PySoemTestEnvironment:
     def get_slaves(self):
         return self._master.slaves
 
+    def get_el1259(self):
+        return self._master.slaves[3]
+
     def get_slave_for_foe_testing(self):
         return self._master.slaves[0]  # the XMC device
 
@@ -102,7 +130,10 @@ class PySoemTestEnvironment:
 
     def _processdata_thread(self):
         while not self._pd_thread_stop_event.is_set():
-            self._master.send_processdata()
+            if self._is_overlapping_enabled:
+                self._master.send_overlap_processdata()
+            else:
+                self._master.send_processdata()
             self._actual_wkc = self._master.receive_processdata(10000)
             time.sleep(0.01)
 
@@ -152,7 +183,7 @@ class PySoemTestEnvironment:
 
 
 @pytest.fixture
-def pysoem_environment(request):
+def pysoem_env(request):
     env = PySoemTestEnvironment(request.config.getoption('--ifname'))
     yield env
     env.teardown()
