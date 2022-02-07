@@ -831,6 +831,12 @@ cdef class CdefSlave:
         
     od = property(_get_od)
 
+    def get_block_lrw(self):
+        return self._ec_slave.blockLRW
+
+    def set_block_lrw(self, val):
+        self._ec_slave.blockLRW = val
+
 
 cdef class CdefCoeObject:
     """Object info for objects in the object dictionary.
