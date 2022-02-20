@@ -144,6 +144,10 @@ cdef class CdefMaster:
     cdef CdefMasterSettings _settings
     cdef public int sdo_read_timeout
     cdef public int sdo_write_timeout
+
+    state = property(_get_state, _set_state)
+    expected_wkc  = property(_get_expected_wkc)
+    dc_time = property(_get_dc_time)
     
     def __cinit__(self):
         self._ecx_contextt.port = &self._ecx_port
@@ -379,22 +383,16 @@ cdef class CdefMaster:
 
     def _set_state(self, value):
         self._ec_slave[0].state = value
-
-    state = property(_get_state, _set_state)
     
     def _get_expected_wkc(self):
         """Calculates the expected Working Counter"""
         return (self._ec_group[0].outputsWKC * 2) + self._ec_group[0].inputsWKC
-        
-    expected_wkc  = property(_get_expected_wkc)
     
     def _get_dc_time(self):
         """DC time in ns required to synchronize the EtherCAT cycle with SYNC0 cycles.
 
         Note EtherCAT cycle here means the call of send_processdata and receive_processdata."""
         return self._ec_DCtime
-        
-    dc_time = property(_get_dc_time)
         
         
 class SdoError(Exception):
@@ -482,7 +480,7 @@ class PacketError(Exception):
         
     def _get_desc(self):
         return self._code_desc[self.error_code]
-        
+
     desc = property(_get_desc)
 
 
@@ -533,7 +531,19 @@ cdef class CdefSlave:
     cdef _pos # keep in mind that first slave has pos 1  
     cdef public _CallbackData _cd
     cdef cpysoem.ec_ODlistt _ex_odlist
-    
+
+    name = property(_get_name)
+    man = property(_get_eep_man)
+    id = property(_get_eep_id)
+    rev = property(_get_eep_rev)
+    config_func = property(_get_PO2SOconfig, _set_PO2SOconfig)
+    state = property(_get_state, _set_state)
+    input = property(_get_input)
+    output = property(_get_output, _set_output)
+    al_status = property(_get_al_status)
+    is_lost = property(_get_is_lost, _set_is_lost)
+    od = property(_get_od)
+
     def __init__(self, pos):
         self._pos = pos
         self._cd = _CallbackData()
@@ -782,26 +792,18 @@ cdef class CdefSlave:
     def _get_name(self):
         """Name of the slave, read out from the slaves SII during config_init."""
         return (<bytes>self._ec_slave.name).decode('utf8')
-        
-    name = property(_get_name)
     
     def _get_eep_man(self):
         """Vendor ID of the slave, read out from the slaves SII during config_init."""
         return self._ec_slave.eep_man
-        
-    man = property(_get_eep_man)
     
     def _get_eep_id(self):
         """Product Code of the slave, read out from the slaves SII during config_init."""
         return self._ec_slave.eep_id
-        
-    id = property(_get_eep_id)
     
     def _get_eep_rev(self):
         """Revision Number of the slave, read out from the slaves SII during config_init."""
         return self._ec_slave.eep_rev
-        
-    rev = property(_get_eep_rev)
         
     def _get_PO2SOconfig(self):
         """Slaves callback function that is called during config_init.
@@ -816,15 +818,6 @@ cdef class CdefSlave:
             self._ec_slave.PO2SOconfig = NULL
         else:
             self._ec_slave.PO2SOconfig = _xPO2SOconfig
-        
-    def _get_input(self):
-        num_bytes = self._ec_slave.Ibytes
-        if (self._ec_slave.Ibytes == 0 and self._ec_slave.Ibits > 0):
-            num_bytes = 1
-        return PyBytes_FromStringAndSize(<char*>self._ec_slave.inputs, num_bytes)
-
-    input = property(_get_input)
-    config_func = property(_get_PO2SOconfig, _set_PO2SOconfig)
 
     def _get_state(self):
         return self._ec_slave.state
@@ -832,8 +825,12 @@ cdef class CdefSlave:
     def _set_state(self, value):
         self._ec_slave.state = value
 
-    state = property(_get_state, _set_state)
-    
+    def _get_input(self):
+        num_bytes = self._ec_slave.Ibytes
+        if (self._ec_slave.Ibytes == 0 and self._ec_slave.Ibits > 0):
+            num_bytes = 1
+        return PyBytes_FromStringAndSize(<char*>self._ec_slave.inputs, num_bytes)
+
     def _get_output(self):
         num_bytes = self._ec_slave.Obytes
         if (self._ec_slave.Obytes == 0 and self._ec_slave.Obits > 0):
@@ -842,21 +839,15 @@ cdef class CdefSlave:
 
     def _set_output(self, bytes value):
         memcpy(<char*>self._ec_slave.outputs, <char*>value, len(value))
-        
-    output = property(_get_output, _set_output)
     
     def _get_al_status(self):
         return self._ec_slave.ALstatuscode
-       
-    al_status = property(_get_al_status)
     
     def _get_is_lost(self):
         return self._ec_slave.islost
 
     def _set_is_lost(self, value):
         self._ec_slave.islost = value
-    
-    is_lost = property(_get_is_lost, _set_is_lost)
     
     def _get_od(self):
         logger.debug('ecx_readODlist()')
@@ -872,8 +863,7 @@ cdef class CdefSlave:
             coe_objects.append(coe_object)
             
         return coe_objects
-        
-    od = property(_get_od)
+
 
 
 cdef class CdefCoeObject:
@@ -887,6 +877,14 @@ cdef class CdefCoeObject:
     cdef cpysoem.boolean _is_description_read
     cdef cpysoem.boolean _are_entries_read
     cdef cpysoem.ec_OElistt _ex_oelist
+
+    index = property(_get_index)
+    data_type = property(_get_data_type)
+    name = property(_get_name)
+    object_code = property(_get_object_code)
+    entries = property(_get_entries)
+    bit_length = property(_get_bit_length)
+    obj_access = property(_get_obj_access)
     
     def __init__(self, int item):
         self._item = item
@@ -913,26 +911,18 @@ cdef class CdefCoeObject:
             
     def _get_index(self):
         return self._ex_odlist.Index[self._item]
-        
-    index = property(_get_index)
     
     def _get_data_type(self):
         self._read_description()
         return self._ex_odlist.DataType[self._item]
-        
-    data_type = property(_get_data_type)
     
     def _get_object_code(self):
         self._read_description()
         return self._ex_odlist.ObjectCode[self._item]
         
-    object_code = property(_get_object_code)
-        
     def _get_name(self):
         self._read_description()
         return (<bytes>self._ex_odlist.Name[self._item]).decode('utf8')
-        
-    name = property(_get_name)
     
     def _get_entries(self):
         self._read_description()
@@ -947,8 +937,6 @@ cdef class CdefCoeObject:
                 entry._ex_oelist = &self._ex_oelist
                 entries.append(entry)
             return entries
-
-    entries = property(_get_entries)
     
     def _get_bit_length(self):
         cdef int sum = 0
@@ -960,44 +948,37 @@ cdef class CdefCoeObject:
             for i in range(self._ex_odlist.MaxSub[self._item]+1):
                 sum += self._ex_oelist.BitLength[i]
             return sum
-            
-    bit_length = property(_get_bit_length)
     
     def _get_obj_access(self):
         if self._ex_odlist.MaxSub[self._item] == 0:
             return self._ex_oelist.ObjAccess[0]
         else:
             return 0
-    
-    obj_access = property(_get_obj_access)
         
 
 cdef class CdefCoeObjectEntry:
     cdef cpysoem.ec_OElistt* _ex_oelist
     cdef int _item
-    
+
+    name = property(_get_name)
+    data_type = property(_get_data_type)
+    bit_length = property(_get_bit_length)
+    obj_access = property(_get_obj_access)
+
     def __init__(self, int item):
         self._item = item
         
     def _get_name(self):            
         return (<bytes>self._ex_oelist.Name[self._item]).decode('utf8')
-        
-    name = property(_get_name)
 
     def _get_data_type(self):
         return self._ex_oelist.DataType[self._item]
-        
-    data_type = property(_get_data_type)
-    
+
     def _get_bit_length(self):
         return self._ex_oelist.BitLength[self._item]
     
-    bit_length = property(_get_bit_length)
-    
     def _get_obj_access(self):
         return self._ex_oelist.ObjAccess[self._item]
-    
-    obj_access = property(_get_obj_access)
         
 
 cdef int _xPO2SOconfig(cpysoem.uint16 slave, void* user):
