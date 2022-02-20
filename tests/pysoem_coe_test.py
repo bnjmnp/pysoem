@@ -11,8 +11,20 @@ def el1259(pysoem_env):
     return pysoem_env.get_el1259()
 
 
+@pytest.fixture
+def xmc_device(pysoem_env):
+    pysoem_env.config_init()
+    return pysoem_env.get_xmc_test_device()
+
+
 def get_obj_from_od(od, index):
     return next(obj for obj in od if obj.index == index)
+
+
+def test_sdo_read(el1259):
+    """Validate that the returned object of sdo_read is of type byte."""
+    man_obj_bytes = el1259.sdo_read(0x1018, 1)
+    assert type(man_obj_bytes) == bytes
 
 
 def test_access_not_existing_object(el1259):
@@ -79,6 +91,7 @@ def test_write_to_1c1x_while_in_safeop(el1259):
         assert excinfo.value.abort_code == 0x08000022
         assert excinfo.value.desc == 'Data cannot be transferred or stored to the application because of the present device state'
 
+
 @pytest.mark.skip
 def test_read_timeout(pysoem_env):
     """Test timeout
@@ -132,3 +145,31 @@ def test_sdo_info_rec(el1259):
     assert entry_vendor_id.data_type == pysoem.ECT_UNSIGNED32
     assert entry_vendor_id.bit_length == 32
     assert entry_vendor_id.obj_access == 0x0007
+
+
+@pytest.mark.parametrize('mode', ['mbx_receive', 'sdo_read'])
+def test_coe_emergency(xmc_device, mode):
+    """Test if CoE Emergency errors can be received.
+
+    The XMC device throws an CoE Emergency after writing to 0x8001:01.
+    """
+    # no exception should be raise by mbx_receive() now.
+    xmc_device.mbx_receive()
+    # But this write should trigger an emergency message in the device, ..
+    xmc_device.sdo_write(0x8001, 1, bytes(4))
+    # .. so ether an mbx_receive() or sdo_read() will reveal the emergency message.
+    with pytest.raises(pysoem.Emergency) as excinfo:
+        if mode == 'mbx_receive':
+            xmc_device.mbx_receive()
+        elif mode == 'sdo_read':
+            _ = xmc_device.sdo_read(0x1018, 1)
+    assert excinfo.value.error_code == 0xFFFE
+    assert excinfo.value.error_reg == 0x00
+    assert excinfo.value.b1 == 0xAA
+    assert excinfo.value.w1 == 0x5555
+    assert excinfo.value.w2 == 0x5555
+    # check if SDO communication is still working
+    for i in range(10):
+        _ = xmc_device.sdo_read(0x1018, 1)
+    # again mbx_receive() should not raise any further exception
+    xmc_device.mbx_receive()

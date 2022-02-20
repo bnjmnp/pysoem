@@ -413,6 +413,26 @@ class SdoError(Exception):
         self.abort_code = abort_code
         self.desc = desc
 
+class Emergency(Exception):
+    """Sdo read or write abort
+
+    Attributes:
+        slave_pos (int): position of the slave
+        error_code (int): error code
+        error_reg (int): error register
+        b1 (int): data byte [0]
+        w1 (int): data bytes [1,2]
+        w2 (int): data bytes [3,4]
+    """
+
+    def __init__(self, slave_pos, error_code, error_reg, b1, w1, w2):
+        self.slave_pos = slave_pos
+        self.error_code = error_code
+        self.error_reg = error_reg
+        self.b1 = b1
+        self.w1 = w1
+        self.w2 = w2
+
 
 class SdoInfoError(Exception):
     """Errors during Object directory info read
@@ -607,6 +627,23 @@ cdef class CdefSlave:
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
             self._raise_exception(&err)
+
+    def mbx_receive(self):
+        """Read out the slaves out mailbox - to check for emergency messages.
+
+        :return: Work counter
+        :rtype: int
+        :raises Emergency: if an emergency message was received
+        """
+        cdef cpysoem.ec_mbxbuft buf
+        cpysoem.ec_clearmbx(&buf)
+        cdef int wkt = cpysoem.ecx_mbxreceive(self._ecx_contextt, self._pos, &buf, 0)
+
+        cdef cpysoem.ec_errort err
+        if cpysoem.ecx_poperror(self._ecx_contextt, &err):
+            self._raise_exception(&err)
+
+        return wkt
         
     def write_state(self):
         """Write slave state.
@@ -725,6 +762,13 @@ cdef class CdefSlave:
                            err.SubIdx,
                            err.AbortCode,
                            cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8'))
+        elif err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+            raise Emergency(err.Slave,
+                            err.ErrorCode,
+                            err.ErrorReg,
+                            err.b1,
+                            err.w1,
+                            err.w2)
         elif err.Etype == cpysoem.EC_ERR_TYPE_MBX_ERROR:
             raise MailboxError(err.Slave,
                                err.ErrorCode,

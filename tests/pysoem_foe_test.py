@@ -5,7 +5,7 @@ import pysoem
 
 def test_foe_good(pysoem_env):
     pysoem_env.config_init()
-    test_slave = pysoem_env.get_slave_for_foe_testing()
+    test_slave = pysoem_env.get_xmc_test_device()
 
     for file_path in ['./foe_testdata/random_data_01.bin', './foe_testdata/random_data_02.bin']:
         with open(file_path, 'rb') as file:
@@ -21,7 +21,7 @@ def test_foe_good(pysoem_env):
 
 def test_foe_fails(pysoem_env):
     pysoem_env.config_init()
-    test_slave = pysoem_env.get_slave_without_foe_support()
+    test_slave = pysoem_env.get_device_without_foe()
 
     # expect foe READ to fail
     with pytest.raises(pysoem.MailboxError) as excinfo:

@@ -122,10 +122,10 @@ class PySoemTestEnvironment:
     def get_el1259(self):
         return self._master.slaves[3]
 
-    def get_slave_for_foe_testing(self):
+    def get_xmc_test_device(self):
         return self._master.slaves[0]  # the XMC device
 
-    def get_slave_without_foe_support(self):
+    def get_device_without_foe(self):
         return self._master.slaves[2]  # the EL3002
 
     def _processdata_thread(self):

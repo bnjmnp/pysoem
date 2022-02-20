@@ -16,6 +16,7 @@ from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, u
 cdef extern from "ethercat.h":
     
     DEF EC_MAXBUF = 16
+    DEF EC_MAXMBX = 1486
     
     ec_adaptert* ec_find_adapters()
         
@@ -32,6 +33,7 @@ cdef extern from "ethercat.h":
     ctypedef uint64_t            uint64
     ctypedef float               float32
     ctypedef double              float64
+    ctypedef uint8               ec_mbxbuft[EC_MAXMBX]
     
     ctypedef struct ec_timet:
         uint32 sec
@@ -70,8 +72,14 @@ cdef extern from "ethercat.h":
         uint16      Index
         uint8       SubIdx
         ec_err_type Etype
+        # union - General abortcode
         int32   AbortCode
+        # union - Specific error for Emergency mailbox
         uint16  ErrorCode
+        uint8   ErrorReg
+        uint8   b1
+        uint16  w1
+        uint16  w2
     
     # from nicdrv.h
         
@@ -299,7 +307,10 @@ cdef extern from "ethercat.h":
     
     int ecx_recover_slave(ecx_contextt *context, uint16 slave, int timeout)
     int ecx_reconfig_slave(ecx_contextt *context, uint16 slave, int timeout)
-    
+
+
+    int ecx_mbxreceive(ecx_contextt *context, uint16 slave, ec_mbxbuft *mbx, int timeout)
+    void ec_clearmbx(ec_mbxbuft *Mbx)
     boolean ecx_poperror(ecx_contextt *context, ec_errort *Ec)
     const char* ec_sdoerror2string(uint32 sdoerrorcode)
     char* ec_mbxerror2string(uint16 errorcode)
