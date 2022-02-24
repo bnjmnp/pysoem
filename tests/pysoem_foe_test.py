@@ -1,14 +1,18 @@
 
+import os
 import pytest
 import pysoem
+
+
+test_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def test_foe_good(pysoem_env):
     pysoem_env.config_init()
     test_slave = pysoem_env.get_xmc_test_device()
 
-    for file_path in ['./foe_testdata/random_data_01.bin', './foe_testdata/random_data_02.bin']:
-        with open(file_path, 'rb') as file:
+    for file_path in ['foe_testdata/random_data_01.bin', 'foe_testdata/random_data_02.bin']:
+        with open(os.path.join(test_dir, file_path), 'rb') as file:
             random_data = file.read()
 
         # write
