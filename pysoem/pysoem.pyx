@@ -199,7 +199,7 @@ cdef class CdefMaster:
             usetable (bool): True when using configtable to init slaves, False otherwise
         
         Returns:
-            int: Working Counter of slave discover datagram = number of slaves found, -1 when no slave is connected
+            int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
         ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
         if ret_val > 0:
@@ -306,7 +306,7 @@ cdef class CdefMaster:
         The function does not check if the actual state is changed.
         
         Returns:
-            int: Workint counter or EC_NOFRAME
+            int: Working counter or EC_NOFRAME
         """
         return cpysoem.ecx_writestate(&self._ecx_contextt, 0)
         
@@ -504,22 +504,21 @@ class EepromError(Exception):
 
     def __init__(self, message):
         self.message = message
-    
+
+
 cdef class _CallbackData:
     cdef:
         object func
         object exc_raised
         object exc_info
-    
+
+
 cdef class CdefSlave:
     """Represents a slave device
 
     Do not use this class in application code. Instances are created
     by a Master instance on a successful config_init(). They then can be 
     obtained by slaves list
-
-    Attributes:
-        pos(int): A integer specifying logical position in the network.
     """
     
     EC_TIMEOUTRXM = 700000
@@ -556,7 +555,7 @@ cdef class CdefSlave:
             sync0_cycle_time (int): Cycltime SYNC0 in ns
             sync0_shift_time (int): Optional SYNC0 shift time in ns
             sync1_cycle_time (int): Optional cycltime for SYNC1 in ns. This time is a delta time in relation to SYNC0.
-                                    If CylcTime1 = 0 then SYNC1 fires a the same time as SYNC0.
+                                    If CylcTime1 = 0 then SYNC1 fires at the same time as SYNC0.
         """
     
         if sync1_cycle_time is None:
@@ -573,7 +572,7 @@ cdef class CdefSlave:
         Args:
             index (int): Index of the object.
             subindex (int): Subindex of the object.
-            size (:obj:`int`, optioinal): The size of the reading buffer.
+            size (:obj:`int`, optional): The size of the reading buffer.
             ca (:obj:`bool`, optional): complete access
 
         Returns:
@@ -581,7 +580,7 @@ cdef class CdefSlave:
 
         Raises:
             SdoError: if write fails, the exception includes the SDO abort code  
-            MailboxError: on errors in the mailbox protocoll
+            MailboxError: on errors in the mailbox protocol
             PacketError: on packet level error
         """
         if self._ecx_contextt == NULL:
@@ -627,7 +626,7 @@ cdef class CdefSlave:
 
         Raises:
             SdoError: if write fails, the exception includes the SDO abort code  
-            MailboxError: on errors in the mailbox protocoll
+            MailboxError: on errors in the mailbox protocol
             PacketError: on packet level error
         """          
         cdef int size = len(data)
@@ -663,6 +662,7 @@ cdef class CdefSlave:
         return cpysoem.ecx_writestate(self._ecx_contextt, self._pos)
         
     def state_check(self, int expected_state, timeout=2000):
+        """Wait for the slave to reach the state that was requested."""
         return cpysoem.ecx_statecheck(self._ecx_contextt, self._pos, expected_state, timeout)
         
     def reconfig(self, timeout=500):
