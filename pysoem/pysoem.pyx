@@ -640,6 +640,8 @@ cdef class CdefSlave:
     def mbx_receive(self):
         """Read out the slaves out mailbox - to check for emergency messages.
 
+        .. versionadded:: 1.0.4
+
         :return: Work counter
         :rtype: int
         :raises Emergency: if an emergency message was received
@@ -666,9 +668,21 @@ cdef class CdefSlave:
         return cpysoem.ecx_statecheck(self._ecx_contextt, self._pos, expected_state, timeout)
         
     def reconfig(self, timeout=500):
+        """Reconfigure slave.
+
+        :param timeout: local timeout
+        :return: Slave state
+        :rtype: int
+        """
         return cpysoem.ecx_reconfig_slave(self._ecx_contextt, self._pos, timeout)
         
     def recover(self, timeout=500):
+        """Recover slave.
+
+        :param timeout: local timeout
+        :return: >0 if successful
+        :rtype: int
+        """
         return cpysoem.ecx_recover_slave(self._ecx_contextt, self._pos, timeout)
         
     def eeprom_read(self, int word_address, timeout=20000):
@@ -820,6 +834,10 @@ cdef class CdefSlave:
             self._ec_slave.PO2SOconfig = _xPO2SOconfig
 
     def _get_state(self):
+        """Request a new state.
+
+        After a new state has been set, `write_state` must be called.
+        """
         return self._ec_slave.state
 
     def _set_state(self, value):
