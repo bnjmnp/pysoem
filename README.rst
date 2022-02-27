@@ -71,6 +71,11 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.0.4
+^^^^^^^
+* Proper logging
+* Introduces `mbx_receive`
+
 v1.0.3
 ^^^^^^^
 * Fix the FoE password issue
