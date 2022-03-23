@@ -362,7 +362,20 @@ cdef class CdefMaster:
             int: Working Counter
         """
         return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
+    
+    def set_manualstatechange(self, int manualstatechange):
+        """Set manualstatechange variable in context.
         
+        Flag to control legacy automatic state change or manual state change in functions
+        config_init() and config_map()
+        Flag value = 0 is legacy automatic state
+        Flag value > 0 and states must be handled manually
+        Args:
+            manualstatechange (int): The manual state change flag.
+        """
+
+        self._ecx_contextt.manualstatechange = manualstatechange
+
     def _get_slave(self, int pos):
         if pos < 0:
             raise IndexError('requested slave device is not available')
