@@ -148,7 +148,8 @@ cdef class CdefMaster:
     state = property(_get_state, _set_state)
     expected_wkc  = property(_get_expected_wkc)
     dc_time = property(_get_dc_time)
-    
+    manual_state_change = property(_get_manual_state_change, _set_manual_state_change)
+
     def __cinit__(self):
         self._ecx_contextt.port = &self._ecx_port
         self._ecx_contextt.slavelist = &self._ec_slave[0]
@@ -362,7 +363,7 @@ cdef class CdefMaster:
             int: Working Counter
         """
         return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
-        
+    
     def _get_slave(self, int pos):
         if pos < 0:
             raise IndexError('requested slave device is not available')
@@ -393,6 +394,22 @@ cdef class CdefMaster:
 
         Note EtherCAT cycle here means the call of send_processdata and receive_processdata."""
         return self._ec_DCtime
+    
+    def _set_manual_state_change(self, int manual_state_change):
+        """Set manualstatechange variable in context.
+        
+        Flag to control legacy automatic state change or manual state change in functions
+        config_init() and config_map()
+        Flag value == 0 is legacy automatic state
+        Flag value != 0 and states must be handled manually
+        Args:
+            manual_state_change (int): The manual state change flag.
+        """
+        self._ecx_contextt.manualstatechange = manual_state_change
+
+    def _get_manual_state_change(self):        
+        return self._ecx_contextt.manualstatechange
+
         
         
 class SdoError(Exception):
