@@ -41,8 +41,6 @@ cdef extern from "ethercat.h":
     
     # from ethercattype.h
     
-    DEF EC_TIMEOUTRET = 2000
-    
     ctypedef enum ec_err_type:
         EC_ERR_TYPE_SDO_ERROR         = 0
         EC_ERR_TYPE_EMERGENCY         = 1
@@ -308,7 +306,6 @@ cdef extern from "ethercat.h":
     int ecx_recover_slave(ecx_contextt *context, uint16 slave, int timeout)
     int ecx_reconfig_slave(ecx_contextt *context, uint16 slave, int timeout)
 
-
     int ecx_mbxreceive(ecx_contextt *context, uint16 slave, ec_mbxbuft *mbx, int timeout)
     void ec_clearmbx(ec_mbxbuft *Mbx)
     boolean ecx_poperror(ecx_contextt *context, ec_errort *Ec)
@@ -326,3 +323,6 @@ cdef extern from "ethercat.h":
 
     int ecx_FOEread(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int *psize, void *p, int timeout)
     int ecx_FOEwrite(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int psize, void *p, int timeout)
+
+    int ecx_FPWR(ecx_portt *port, uint16 ADP, uint16 ADO, uint16 length, void *data, int timeout)
+

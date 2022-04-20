@@ -34,6 +34,12 @@ OP_STATE = cpysoem.EC_STATE_OPERATIONAL
 STATE_ACK = cpysoem.EC_STATE_ACK
 STATE_ERROR = cpysoem.EC_STATE_ERROR
 
+EC_TIMEOUTRET = 2000
+
+ECT_REG_SM0 = 0x0800
+ECT_REG_SM1 = ECT_REG_SM0 + 0x08
+
+
 cpdef enum ec_datatype:
     ECT_BOOLEAN         = 0x0001,
     ECT_INTEGER8        = 0x0002,
@@ -530,6 +536,19 @@ cdef class _CallbackData:
         object exc_info
 
 
+class SiiOffset:
+    """Item offsets in SII general section."""
+    # Took it from ethercattype.h but no type was given.
+    MAN = 0x0008
+    ID = 0x000A
+    REV = 0x000B
+    BOOT_RX_MBX = 0x0014
+    BOOT_TX_MBX = 0x0016
+    STD_RX_MBX = 0x0018
+    STD_TX_MBX = 0x001A
+    MBX_PROTO = 0x001C
+
+
 cdef class CdefSlave:
     """Represents a slave device
 
@@ -538,7 +557,7 @@ cdef class CdefSlave:
     obtained by slaves list
     """
     
-    EC_TIMEOUTRXM = 700000
+    DEF EC_TIMEOUTRXM = 700000
     DEF STATIC_SDO_READ_BUFFER_SIZE = 256
     
     cdef cpysoem.ecx_contextt* _ecx_contextt
@@ -795,6 +814,22 @@ cdef class CdefSlave:
             return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
         finally:
             PyMem_Free(pbuf)
+
+    def amend_mbx(self, mailbox, start_addr, size):
+        if mailbox == 'out':
+            self._ec_slave.SM[0].StartAddr = start_addr
+            self._ec_slave.SM[0].SMlength = size
+            self._ec_slave.mbx_wo = start_addr
+            self._ec_slave.mbx_l = size
+            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM0, sizeof(self._ec_slave.SM[0]), &self._ec_slave.SM[0], EC_TIMEOUTRET)
+        elif mailbox == 'in':
+            self._ec_slave.SM[1].StartAddr = start_addr
+            self._ec_slave.SM[1].SMlength = size
+            self._ec_slave.mbx_ro = start_addr
+            self._ec_slave.mbx_rl = size
+            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM0, sizeof(self._ec_slave.SM[1]), &self._ec_slave.SM[1], EC_TIMEOUTRET)
+        else:
+            raise AttributeError()
 
     cdef _raise_exception(self, cpysoem.ec_errort* err):
         if err.Etype == cpysoem.EC_ERR_TYPE_SDO_ERROR:
