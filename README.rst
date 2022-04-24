@@ -71,6 +71,10 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.0.5
+^^^^^^^
+* Introduces the manual_state_change property
+
 v1.0.4
 ^^^^^^^
 * Proper logging

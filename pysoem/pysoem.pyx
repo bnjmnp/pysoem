@@ -404,6 +404,8 @@ cdef class CdefMaster:
         Flag value != 0 and states must be handled manually
         Args:
             manual_state_change (int): The manual state change flag.
+
+        .. versionadded:: 1.0.5
         """
         self._ecx_contextt.manualstatechange = manual_state_change
 
