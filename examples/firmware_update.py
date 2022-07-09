@@ -4,6 +4,7 @@ import sys
 import argparse
 import logging
 import struct
+import time
 
 import pysoem
 
@@ -33,7 +34,7 @@ def main(cmd_line_args):
 
     logger.info('Enumerate devices in the network..')
     number_of_devices_found = master.config_init()
-    logger.info('..Devices found: %d.' % number_of_devices_found)
+    logger.info('..Number of devices found: %d.' % number_of_devices_found)
     if number_of_devices_found == 0:
         raise FirmwareUpdateError(f'No device found at the give interface: {script_args.interface_name}!')
     elif script_args.device_position > number_of_devices_found:
@@ -41,7 +42,7 @@ def main(cmd_line_args):
 
     device = master.slaves[script_args.device_position-1]
 
-    logger.info('Request Init state for the device.')
+    logger.info('Request Init state for the target device in position %d.' % script_args.device_position)
     device.state = pysoem.INIT_STATE
     device.write_state()
     device.state_check(pysoem.INIT_STATE, 3_000_000)
@@ -52,12 +53,12 @@ def main(cmd_line_args):
     rx_mbx_addr, rx_mbx_len = struct.unpack('HH', boot_rx_mbx)
     boot_tx_mbx = device.eeprom_read(pysoem.SiiOffset.BOOT_TX_MBX)
     tx_mbx_addr, tx_mbx_len = struct.unpack('HH', boot_tx_mbx)
-    device.amend_mbx('out', rx_mbx_addr, rx_mbx_len)
-    logger.info('Update SM0: {Address: %4.4x; Length: %4d}' % (rx_mbx_addr, rx_mbx_len))
-    device.amend_mbx('in', tx_mbx_addr, tx_mbx_len)
-    logger.info('Update SM1: {Address: %4.4x; Length: %4d}' % (tx_mbx_addr, tx_mbx_len))
+    logger.info('Update SM0: {Address: 0x%4.4x; Length: %4d}' % (rx_mbx_addr, rx_mbx_len))
+    device.amend_mbx(mailbox='out', start_address=rx_mbx_addr, size=rx_mbx_len)
+    logger.info('Update SM1: {Address: 0x%4.4x; Length: %4d}' % (tx_mbx_addr, tx_mbx_len))
+    device.amend_mbx(mailbox='in', start_address=tx_mbx_addr, size=tx_mbx_len)
 
-    logger.info('Request Boot state for device')
+    logger.info('Request Boot state for the device.')
     device.state = pysoem.BOOT_STATE
     device.write_state()
     device.state_check(pysoem.BOOT_STATE, 3_000_000)
@@ -65,19 +66,21 @@ def main(cmd_line_args):
         raise FirmwareUpdateError('The device did not go into Boot state!')
 
     logger.info('Send file to the device using FoE write.')
-    device.foe_write(filename=script_args.update_file.name,
+    device.foe_write(filename=script_args.update_file.name[:-4],
                      password=0,
                      data=script_args.update_file.read(),
-                     timeout=5_000_000)
+                     timeout=6_000_000)
+    logger.info('Download completed.')
 
+    logger.info('Request Init state for the device.')
     device.state = pysoem.INIT_STATE
     device.write_state()
 
     master.close()
+    logger.info('Finished.')
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     try:
         main(sys.argv[1:])
     except Exception as e:

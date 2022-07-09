@@ -21,7 +21,7 @@ import time
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
-from libc.string cimport memcpy
+from libc.string cimport memcpy, memset
 
 logger = logging.getLogger(__name__)
 
@@ -815,19 +815,43 @@ cdef class CdefSlave:
         finally:
             PyMem_Free(pbuf)
 
-    def amend_mbx(self, mailbox, start_addr, size):
+    def amend_mbx(self, mailbox, start_address, size):
+        """Change the start address and size of a mailbox.
+
+        Note that the slave must me in INIT state to do that.
+
+        :param str mailbox: Ether 'out', or 'in' to specify which mailbox to update.
+        :param int start_address: New start address for the mailbox.
+        :param int size: New size of the mailbox.
+
+        .. versionadded:: 1.0.6
+        """
+        cdef unsigned char* clear_mbx_dummy
+
         if mailbox == 'out':
-            self._ec_slave.SM[0].StartAddr = start_addr
+            clear_mbx_dummy = <unsigned char*>PyMem_Malloc(sizeof(self._ec_slave.SM[0]))
+            memset(clear_mbx_dummy, 0, sizeof(self._ec_slave.SM[0]))
+            # Clear the slaves mailbox configuration.
+            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM0, sizeof(self._ec_slave.SM[0]), clear_mbx_dummy, EC_TIMEOUTRET)
+            PyMem_Free(clear_mbx_dummy)
+            self._ec_slave.SM[0].StartAddr = start_address
             self._ec_slave.SM[0].SMlength = size
-            self._ec_slave.mbx_wo = start_addr
+            self._ec_slave.mbx_wo = start_address
             self._ec_slave.mbx_l = size
+            # Update the slaves mailbox configuration.
             cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM0, sizeof(self._ec_slave.SM[0]), &self._ec_slave.SM[0], EC_TIMEOUTRET)
         elif mailbox == 'in':
-            self._ec_slave.SM[1].StartAddr = start_addr
+            clear_mbx_dummy = <unsigned char*>PyMem_Malloc(sizeof(self._ec_slave.SM[1]))
+            memset(clear_mbx_dummy, 0, sizeof(self._ec_slave.SM[1]))
+            # Clear the slaves mailbox configuration.
+            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM1, sizeof(self._ec_slave.SM[1]), clear_mbx_dummy, EC_TIMEOUTRET)
+            PyMem_Free(clear_mbx_dummy)
+            self._ec_slave.SM[1].StartAddr = start_address
             self._ec_slave.SM[1].SMlength = size
-            self._ec_slave.mbx_ro = start_addr
+            self._ec_slave.mbx_ro = start_address
             self._ec_slave.mbx_rl = size
-            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM0, sizeof(self._ec_slave.SM[1]), &self._ec_slave.SM[1], EC_TIMEOUTRET)
+            # Update the slaves mailbox configuration.
+            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM1, sizeof(self._ec_slave.SM[1]), &self._ec_slave.SM[1], EC_TIMEOUTRET)
         else:
             raise AttributeError()
 
