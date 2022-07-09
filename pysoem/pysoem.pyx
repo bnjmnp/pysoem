@@ -837,32 +837,24 @@ cdef class CdefSlave:
 
         .. versionadded:: 1.0.6
         """
-        cdef unsigned char* clear_mbx_dummy
-
         if mailbox == 'out':
-            clear_mbx_dummy = <unsigned char*>PyMem_Malloc(sizeof(self._ec_slave.SM[0]))
-            memset(clear_mbx_dummy, 0, sizeof(self._ec_slave.SM[0]))
             # Clear the slaves mailbox configuration.
-            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM0, sizeof(self._ec_slave.SM[0]), clear_mbx_dummy, EC_TIMEOUTRET)
-            PyMem_Free(clear_mbx_dummy)
+            self._fpwr(ECT_REG_SM0, bytes(sizeof(self._ec_slave.SM[0])))
             self._ec_slave.SM[0].StartAddr = start_address
             self._ec_slave.SM[0].SMlength = size
             self._ec_slave.mbx_wo = start_address
             self._ec_slave.mbx_l = size
             # Update the slaves mailbox configuration.
-            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM0, sizeof(self._ec_slave.SM[0]), &self._ec_slave.SM[0], EC_TIMEOUTRET)
+            self._fpwr(ECT_REG_SM0, PyBytes_FromStringAndSize(<char*>&self._ec_slave.SM[0], sizeof(self._ec_slave.SM[0])))
         elif mailbox == 'in':
-            clear_mbx_dummy = <unsigned char*>PyMem_Malloc(sizeof(self._ec_slave.SM[1]))
-            memset(clear_mbx_dummy, 0, sizeof(self._ec_slave.SM[1]))
             # Clear the slaves mailbox configuration.
-            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM1, sizeof(self._ec_slave.SM[1]), clear_mbx_dummy, EC_TIMEOUTRET)
-            PyMem_Free(clear_mbx_dummy)
+            self._fpwr(ECT_REG_SM1, bytes(sizeof(self._ec_slave.SM[1])))
             self._ec_slave.SM[1].StartAddr = start_address
             self._ec_slave.SM[1].SMlength = size
             self._ec_slave.mbx_ro = start_address
             self._ec_slave.mbx_rl = size
             # Update the slaves mailbox configuration.
-            cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM1, sizeof(self._ec_slave.SM[1]), &self._ec_slave.SM[1], EC_TIMEOUTRET)
+            self._fpwr(ECT_REG_SM1, PyBytes_FromStringAndSize(<char*>&self._ec_slave.SM[1], sizeof(self._ec_slave.SM[1])))
         else:
             raise AttributeError()
 
