@@ -529,6 +529,17 @@ class EepromError(Exception):
         self.message = message
 
 
+class WkcError(Exception):
+    """Working counter error.
+
+    Attributes:
+        message (str): error message
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+
 cdef class _CallbackData:
     cdef:
         object func
@@ -854,6 +865,23 @@ cdef class CdefSlave:
             cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, ECT_REG_SM1, sizeof(self._ec_slave.SM[1]), &self._ec_slave.SM[1], EC_TIMEOUTRET)
         else:
             raise AttributeError()
+
+    def _fprd(self, int address, int size, timeout_ns=EC_TIMEOUTRET):
+        cdef unsigned char* data
+        data = <unsigned char*>PyMem_Malloc(size)
+        cdef int result = cpysoem.ecx_FPRD(self._ecx_contextt.port, self._ec_slave.configadr, address, size, data, timeout_ns)
+        if result != 1:
+            PyMem_Free(data)
+            raise WkcError()
+        try:
+            return PyBytes_FromStringAndSize(<char*>data, size)
+        finally:
+            PyMem_Free(data)
+
+    def _fpwr(self, int address, bytes data, timeout_ns=EC_TIMEOUTRET):
+        cdef int result = cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, address, <int>len(data), <unsigned char*>data, timeout_ns)
+        if result != 1:
+            raise WkcError()
 
     cdef _raise_exception(self, cpysoem.ec_errort* err):
         if err.Etype == cpysoem.EC_ERR_TYPE_SDO_ERROR:
