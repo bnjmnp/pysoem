@@ -1,10 +1,12 @@
-"""Firmware update example application for PySOEM."""
+"""Firmware update example application for PySOEM.
+
+Note: PySOEM >= 1.0.6 is required.
+"""
 
 import sys
 import argparse
 import logging
 import struct
-import time
 
 import pysoem
 
@@ -36,7 +38,7 @@ def main(cmd_line_args):
     number_of_devices_found = master.config_init()
     logger.info('..Number of devices found: %d.' % number_of_devices_found)
     if number_of_devices_found == 0:
-        raise FirmwareUpdateError(f'No device found at the give interface: {script_args.interface_name}!')
+        raise FirmwareUpdateError(f'No device found at the given interface: {script_args.interface_name}!')
     elif script_args.device_position > number_of_devices_found:
         raise FirmwareUpdateError(f'Requested to update device in position {script_args.device_position}, but only {number_of_devices_found} devices are available!')
 
