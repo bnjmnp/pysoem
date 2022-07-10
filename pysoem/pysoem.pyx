@@ -21,7 +21,7 @@ import time
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
-from libc.string cimport memcpy
+from libc.string cimport memcpy, memset
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,15 @@ SAFEOP_STATE = cpysoem.EC_STATE_SAFE_OP
 OP_STATE = cpysoem.EC_STATE_OPERATIONAL
 STATE_ACK = cpysoem.EC_STATE_ACK
 STATE_ERROR = cpysoem.EC_STATE_ERROR
+
+EC_TIMEOUTRET = 2000
+
+ECT_REG_WD_DIV = 0x0400
+ECT_REG_WD_TIME_PDI = 0x0410
+ECT_REG_WD_TIME_PROCESSDATA = 0x0420
+ECT_REG_SM0 = 0x0800
+ECT_REG_SM1 = ECT_REG_SM0 + 0x08
+
 
 cpdef enum ec_datatype:
     ECT_BOOLEAN         = 0x0001,
@@ -525,11 +534,35 @@ class EepromError(Exception):
         self.message = message
 
 
+class WkcError(Exception):
+    """Working counter error.
+
+    Attributes:
+        message (str): error message
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+
 cdef class _CallbackData:
     cdef:
         object func
         object exc_raised
         object exc_info
+
+
+class SiiOffset:
+    """Item offsets in SII general section."""
+    # Took it from ethercattype.h but no type was given.
+    MAN = 0x0008
+    ID = 0x000A
+    REV = 0x000B
+    BOOT_RX_MBX = 0x0014
+    BOOT_TX_MBX = 0x0016
+    STD_RX_MBX = 0x0018
+    STD_TX_MBX = 0x001A
+    MBX_PROTO = 0x001C
 
 
 cdef class CdefSlave:
@@ -540,7 +573,7 @@ cdef class CdefSlave:
     obtained by slaves list
     """
     
-    EC_TIMEOUTRXM = 700000
+    DEF EC_TIMEOUTRXM = 700000
     DEF STATIC_SDO_READ_BUFFER_SIZE = 256
     
     cdef cpysoem.ecx_contextt* _ecx_contextt
@@ -797,6 +830,84 @@ cdef class CdefSlave:
             return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
         finally:
             PyMem_Free(pbuf)
+
+    def amend_mbx(self, mailbox, start_address, size):
+        """Change the start address and size of a mailbox.
+
+        Note that the slave must me in INIT state to do that.
+
+        :param str mailbox: Ether 'out', or 'in' to specify which mailbox to update.
+        :param int start_address: New start address for the mailbox.
+        :param int size: New size of the mailbox.
+
+        .. versionadded:: 1.0.6
+        """
+        if mailbox == 'out':
+            # Clear the slaves mailbox configuration.
+            self._fpwr(ECT_REG_SM0, bytes(sizeof(self._ec_slave.SM[0])))
+            self._ec_slave.SM[0].StartAddr = start_address
+            self._ec_slave.SM[0].SMlength = size
+            self._ec_slave.mbx_wo = start_address
+            self._ec_slave.mbx_l = size
+            # Update the slaves mailbox configuration.
+            self._fpwr(ECT_REG_SM0, PyBytes_FromStringAndSize(<char*>&self._ec_slave.SM[0], sizeof(self._ec_slave.SM[0])))
+        elif mailbox == 'in':
+            # Clear the slaves mailbox configuration.
+            self._fpwr(ECT_REG_SM1, bytes(sizeof(self._ec_slave.SM[1])))
+            self._ec_slave.SM[1].StartAddr = start_address
+            self._ec_slave.SM[1].SMlength = size
+            self._ec_slave.mbx_ro = start_address
+            self._ec_slave.mbx_rl = size
+            # Update the slaves mailbox configuration.
+            self._fpwr(ECT_REG_SM1, PyBytes_FromStringAndSize(<char*>&self._ec_slave.SM[1], sizeof(self._ec_slave.SM[1])))
+        else:
+            raise AttributeError()
+
+    def set_watchdog(self, wd_type, wd_time_ms):
+        """Change the watchdog time of the PDI or Process Data watchdog.
+
+        .. warning:: This is experimental.
+
+        :param str wd_type: Ether 'pdi', or 'processdata' to specify the watchdog time to be updated.
+        :param float wd_time_ms: Watchdog time in ms.
+
+        At the default watchdog time divider the precision is 0.1 ms.
+
+        .. versionadded:: 1.0.6
+        """
+        wd_type_to_reg_map = {
+            'pdi': ECT_REG_WD_TIME_PDI,
+            'processdata': ECT_REG_WD_TIME_PROCESSDATA,
+        }
+        if wd_type not in wd_type_to_reg_map.keys():
+            raise AttributeError()
+        wd_div_reg = int.from_bytes(self._fprd(ECT_REG_WD_DIV, 2), byteorder='little', signed=False)
+        wd_div_ns = 40 * (wd_div_reg + 2)
+        wd_time_reg = int((wd_time_ms*1000000.0) / wd_div_ns)
+        if wd_time_reg > 0xFFFF:
+            wd_time_ms_limit = 0xFFFF * wd_div_ns / 1000000.0
+            raise AttributeError('wd_time_ms is limited to {} ms'.format(wd_time_ms_limit))
+        actual_wd_time_ms = wd_time_reg * wd_div_ns / 1000000.0
+        self._fpwr(wd_type_to_reg_map[wd_type], wd_time_reg.to_bytes(2, byteorder='little', signed=False))
+
+    def _fprd(self, int address, int size, timeout_ns=EC_TIMEOUTRET):
+        """Send and receive of the FPRD cmd primitive (Configured Address Physical Read)."""
+        cdef unsigned char* data
+        data = <unsigned char*>PyMem_Malloc(size)
+        cdef int result = cpysoem.ecx_FPRD(self._ecx_contextt.port, self._ec_slave.configadr, address, size, data, timeout_ns)
+        if result != 1:
+            PyMem_Free(data)
+            raise WkcError()
+        try:
+            return PyBytes_FromStringAndSize(<char*>data, size)
+        finally:
+            PyMem_Free(data)
+
+    def _fpwr(self, int address, bytes data, timeout_ns=EC_TIMEOUTRET):
+        """Send and receive of the FPWR cmd primitive (Configured Address Physical Write)."""
+        cdef int result = cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, address, <int>len(data), <unsigned char*>data, timeout_ns)
+        if result != 1:
+            raise WkcError()
 
     cdef _raise_exception(self, cpysoem.ec_errort* err):
         if err.Etype == cpysoem.EC_ERR_TYPE_SDO_ERROR:
