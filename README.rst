@@ -71,14 +71,19 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.0.6
+^^^^^^^
+* Introduces ``amend_mbx`` and ``set_watchdog``, though this is rather experimental
+* New example ``firmware_update.py``.
+
 v1.0.5
 ^^^^^^^
-* Introduces the manual_state_change property
+* Introduces the ``manual_state_change`` property
 
 v1.0.4
 ^^^^^^^
 * Proper logging
-* Introduces `mbx_receive`
+* Introduces ``mbx_receive``
 
 v1.0.3
 ^^^^^^^
@@ -92,7 +97,7 @@ v1.0.2
   
 v1.0.1
 ^^^^^^^
-* API change: remove the size parameter for `foe_write`
+* API change: remove the size parameter for ``foe_write``
 * Introduces overlap map support
 
 v1.0.0
@@ -113,7 +118,7 @@ v0.0.18
 
 v0.0.17
 ^^^^^^^
-* Exposes ec_DCtime (`dc_time`) for DC synchronization
+* Exposes ec_DCtime (``dc_time``) for DC synchronization
 
 v0.0.16
 ^^^^^^^

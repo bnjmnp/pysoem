@@ -26,7 +26,8 @@ else:
 # -- Project information -----------------------------------------------------
 
 project = 'PySOEM'
-copyright = '2021, Benjamin Partzsch'
+author = 'Benjamin Partzsch'
+copyright = '2022, Benjamin Partzsch'
 
 # The full version, including alpha/beta/rc tags
 
