@@ -10,12 +10,13 @@ def watchdog_device(pysoem_env):
 
 @pytest.fixture
 def watchdog_register_fix(watchdog_device):
-    assert watchdog_device._fprd(0x400, 2) == bytes([0xC2, 0x09])
-    old_wd_time_pdi = watchdog_device._fprd(0x410, 2)
-    old_wd_time_processdata = watchdog_device._fprd(0x420, 2)
+    timeout_ms = 4000
+    assert watchdog_device._fprd(0x400, 2, timeout_ms) == bytes([0xC2, 0x09])
+    old_wd_time_pdi = watchdog_device._fprd(0x410, 2, timeout_ms)
+    old_wd_time_processdata = watchdog_device._fprd(0x420, 2, timeout_ms)
     yield None
-    watchdog_device._fpwr(0x410, old_wd_time_pdi)
-    watchdog_device._fpwr(0x420, old_wd_time_processdata)
+    watchdog_device._fpwr(0x410, old_wd_time_pdi, timeout_ms)
+    watchdog_device._fpwr(0x420, old_wd_time_processdata, timeout_ms)
 
 
 @pytest.mark.parametrize('wd', ['pdi', 'processdata'])
@@ -40,4 +41,4 @@ def test_watchdog_update(watchdog_device, watchdog_register_fix, wd, time_ms, ex
             watchdog_device.set_watchdog(wd_type=wd, wd_time_ms=time_ms)
     else:
         watchdog_device.set_watchdog(wd_type=wd, wd_time_ms=time_ms)
-        assert watchdog_device._fprd(wd_reg[wd], 2) == expected_reg_value.to_bytes(2, byteorder='little', signed=False)
+        assert watchdog_device._fprd(address=wd_reg[wd], size=2, timeout_us=4000) == expected_reg_value.to_bytes(2, byteorder='little', signed=False)

@@ -34,8 +34,6 @@ OP_STATE = cpysoem.EC_STATE_OPERATIONAL
 STATE_ACK = cpysoem.EC_STATE_ACK
 STATE_ERROR = cpysoem.EC_STATE_ERROR
 
-EC_TIMEOUTRET = 2000
-
 ECT_REG_WD_DIV = 0x0400
 ECT_REG_WD_TIME_PDI = 0x0410
 ECT_REG_WD_TIME_PROCESSDATA = 0x0420
@@ -541,7 +539,7 @@ class WkcError(Exception):
         message (str): error message
     """
 
-    def __init__(self, message):
+    def __init__(self, message=None):
         self.message = message
 
 
@@ -842,6 +840,7 @@ cdef class CdefSlave:
 
         .. versionadded:: 1.0.6
         """
+        fpwr_timeout_us = 4000
         if mailbox == 'out':
             # Clear the slaves mailbox configuration.
             self._fpwr(ECT_REG_SM0, bytes(sizeof(self._ec_slave.SM[0])))
@@ -850,7 +849,9 @@ cdef class CdefSlave:
             self._ec_slave.mbx_wo = start_address
             self._ec_slave.mbx_l = size
             # Update the slaves mailbox configuration.
-            self._fpwr(ECT_REG_SM0, PyBytes_FromStringAndSize(<char*>&self._ec_slave.SM[0], sizeof(self._ec_slave.SM[0])))
+            self._fpwr(ECT_REG_SM0,
+                       PyBytes_FromStringAndSize(<char*>&self._ec_slave.SM[0], sizeof(self._ec_slave.SM[0])),
+                       fpwr_timeout_us)
         elif mailbox == 'in':
             # Clear the slaves mailbox configuration.
             self._fpwr(ECT_REG_SM1, bytes(sizeof(self._ec_slave.SM[1])))
@@ -859,7 +860,9 @@ cdef class CdefSlave:
             self._ec_slave.mbx_ro = start_address
             self._ec_slave.mbx_rl = size
             # Update the slaves mailbox configuration.
-            self._fpwr(ECT_REG_SM1, PyBytes_FromStringAndSize(<char*>&self._ec_slave.SM[1], sizeof(self._ec_slave.SM[1])))
+            self._fpwr(ECT_REG_SM1,
+                       PyBytes_FromStringAndSize(<char*>&self._ec_slave.SM[1], sizeof(self._ec_slave.SM[1])),
+                       fpwr_timeout_us)
         else:
             raise AttributeError()
 
@@ -875,27 +878,32 @@ cdef class CdefSlave:
 
         .. versionadded:: 1.0.6
         """
+        fprd_fpwr_timeout_us = 4000
         wd_type_to_reg_map = {
             'pdi': ECT_REG_WD_TIME_PDI,
             'processdata': ECT_REG_WD_TIME_PROCESSDATA,
         }
         if wd_type not in wd_type_to_reg_map.keys():
             raise AttributeError()
-        wd_div_reg = int.from_bytes(self._fprd(ECT_REG_WD_DIV, 2), byteorder='little', signed=False)
+        wd_div_reg = int.from_bytes(self._fprd(ECT_REG_WD_DIV, 2, fprd_fpwr_timeout_us),
+                                    byteorder='little',
+                                    signed=False)
         wd_div_ns = 40 * (wd_div_reg + 2)
         wd_time_reg = int((wd_time_ms*1000000.0) / wd_div_ns)
         if wd_time_reg > 0xFFFF:
             wd_time_ms_limit = 0xFFFF * wd_div_ns / 1000000.0
             raise AttributeError('wd_time_ms is limited to {} ms'.format(wd_time_ms_limit))
         actual_wd_time_ms = wd_time_reg * wd_div_ns / 1000000.0
-        self._fpwr(wd_type_to_reg_map[wd_type], wd_time_reg.to_bytes(2, byteorder='little', signed=False))
+        self._fpwr(wd_type_to_reg_map[wd_type],
+                   wd_time_reg.to_bytes(2, byteorder='little', signed=False),
+                   fprd_fpwr_timeout_us)
 
-    def _fprd(self, int address, int size, timeout_ns=EC_TIMEOUTRET):
+    def _fprd(self, int address, int size, timeout_us=2000):
         """Send and receive of the FPRD cmd primitive (Configured Address Physical Read)."""
         cdef unsigned char* data
         data = <unsigned char*>PyMem_Malloc(size)
-        cdef int result = cpysoem.ecx_FPRD(self._ecx_contextt.port, self._ec_slave.configadr, address, size, data, timeout_ns)
-        if result != 1:
+        cdef int wkc = cpysoem.ecx_FPRD(self._ecx_contextt.port, self._ec_slave.configadr, address, size, data, timeout_us)
+        if wkc != 1:
             PyMem_Free(data)
             raise WkcError()
         try:
@@ -903,10 +911,10 @@ cdef class CdefSlave:
         finally:
             PyMem_Free(data)
 
-    def _fpwr(self, int address, bytes data, timeout_ns=EC_TIMEOUTRET):
+    def _fpwr(self, int address, bytes data, timeout_us=2000):
         """Send and receive of the FPWR cmd primitive (Configured Address Physical Write)."""
-        cdef int result = cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, address, <int>len(data), <unsigned char*>data, timeout_ns)
-        if result != 1:
+        cdef int wkc = cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, address, <int>len(data), <unsigned char*>data, timeout_us)
+        if wkc != 1:
             raise WkcError()
 
     cdef _raise_exception(self, cpysoem.ec_errort* err):
