@@ -71,6 +71,10 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.0.8
+^^^^^^^
+* Version bump only to re-upload to PyPI with windows-wheel for Python 3.11
+
 v1.0.7
 ^^^^^^^
 * Fix issues with timeouts at ``amend_mbx`` and ``set_watchdog``.
