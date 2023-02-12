@@ -49,12 +49,13 @@ class BasicExample:
         }
 
     def el1259_setup(self, slave_pos):
+        """Config function that will be called when transitioning from PreOP state to SafeOP state."""
         slave = self._master.slaves[slave_pos]
 
         # Enable the digital output.
         slave.sdo_write(index=0x8001, subindex=2, data=struct.pack("B", 1))
 
-        # Select Rx PDOs.
+        # Select rx PDOs.
         rx_map_obj = [
             0x1603,
             0x1607,
@@ -80,6 +81,7 @@ class BasicExample:
         slave.dc_sync(act=True, sync0_cycle_time=10_000_000)  # time is given in ns -> 10,000,000ns = 10ms
 
     def _processdata_thread(self):
+        """Background thread that sends and receives the process-data frame in a 10ms interval."""
         while not self._pd_thread_stop_event.is_set():
             self._master.send_processdata()
             self._actual_wkc = self._master.receive_processdata(timeout=100_000)
@@ -88,6 +90,11 @@ class BasicExample:
             time.sleep(0.01)
 
     def _pdo_update_loop(self):
+        """The actual application code used to toggle the digital output at the EL1259 in an endless loop.
+
+        Called when all slaves reached OP state.
+        Updates the rx PDO of the EL1259 every second.
+        """
         self._master.in_op = True
 
         output_len = len(self._master.slaves[2].output)
