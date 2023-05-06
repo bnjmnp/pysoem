@@ -183,7 +183,11 @@ class PySoemTestEnvironment:
 
 
 @pytest.fixture
-def pysoem_env(request):
-    env = PySoemTestEnvironment(request.config.getoption('--ifname'))
+def ifname(request):
+    return request.config.getoption('--ifname')
+
+@pytest.fixture
+def pysoem_env(ifname):
+    env = PySoemTestEnvironment(ifname)
     yield env
     env.teardown()

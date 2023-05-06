@@ -17,6 +17,7 @@ import sys
 import logging
 import collections
 import time
+import contextlib
 
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
@@ -88,6 +89,15 @@ def find_adapters():
         adapters.append(Adapter(_ec_adapter.name.decode('utf8'), _ec_adapter.desc.decode('utf8')))
         _ec_adapter = _ec_adapter.next
     return adapters
+
+
+@contextlib.contextmanager
+def open(ifname):
+    master = Master()
+    master.open(ifname)
+    yield master
+    master.close()
+
     
 def al_status_code_to_string(code):
     """Look up text string that belongs to AL status code.
