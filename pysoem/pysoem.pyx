@@ -221,8 +221,6 @@ cdef class CdefMaster:
         """
         ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
         if ret_val > 0:
-          # sanity check
-          assert(ret_val==self._ec_slavecount)        
           for i in range(self._ec_slavecount):
               self.slaves.append(self._get_slave(i))
         return ret_val
@@ -242,8 +240,6 @@ cdef class CdefMaster:
             if cd.exc_raised:
                 raise cd.exc_info[0],cd.exc_info[1],cd.exc_info[2]
         logger.debug('io map size: {}'.format(ret_val))
-        # sanity check
-        assert(ret_val<=EC_IOMAPSIZE)
         # raise an exception if one or more mailbox errors occured within ecx_config_map_group call
         error_list = self._collect_mailbox_errors()
         if len(error_list) > 0:
@@ -265,8 +261,6 @@ cdef class CdefMaster:
             if cd.exc_raised:
                 raise cd.exc_info[0],cd.exc_info[1],cd.exc_info[2]
         logger.debug('io map size: {}'.format(ret_val))
-        # sanity check
-        assert(ret_val<=EC_IOMAPSIZE)
         # raise an exception if one or more mailbox errors occured within ecx_config_overlap_map_group call
         error_list = self._collect_mailbox_errors()
         if len(error_list) > 0:
@@ -1148,7 +1142,6 @@ cdef class CdefCoeObjectEntry:
         
 
 cdef int _xPO2SOconfig(cpysoem.uint16 slave, void* user):
-    assert(slave>0)   
     cdef _CallbackData cd
     cd = <object>user
     cd.exc_raised = False
