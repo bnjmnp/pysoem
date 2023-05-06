@@ -86,7 +86,7 @@ def find_adapters():
     Adapter = collections.namedtuple('Adapter', ['name', 'desc'])
     adapters = []
     while not _ec_adapter == NULL:
-        adapters.append(Adapter(_ec_adapter.name.decode('utf8'), _ec_adapter.desc.decode('utf8')))
+        adapters.append(Adapter(_ec_adapter.name.decode('utf8'), _ec_adapter.desc))
         _ec_adapter = _ec_adapter.next
     return adapters
 
@@ -1088,7 +1088,7 @@ cdef class CdefCoeObject:
         
     def _get_name(self):
         self._read_description()
-        return (<bytes>self._ex_odlist.Name[self._item]).decode('utf8')
+        return self._ex_odlist.Name[self._item]
     
     def _get_entries(self):
         self._read_description()
@@ -1135,7 +1135,7 @@ cdef class CdefCoeObjectEntry:
         self._item = item
         
     def _get_name(self):            
-        return (<bytes>self._ex_oelist.Name[self._item]).decode('utf8')
+        return self._ex_oelist.Name[self._item]
 
     def _get_data_type(self):
         return self._ex_oelist.DataType[self._item]
