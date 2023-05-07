@@ -5,6 +5,7 @@ output/
 # Build and package files
 **/*.egg-info/
 **/build/**/*
+_build/
 *.class
 *.py[cod]
 node_modules/
@@ -19,6 +20,9 @@ pysoem/pysoem.c
 # IDEs
 .idea/
 .vscode/
+
+# Test settings
+tests/pytest.ini
 
 # Virtual environments
 .venv
