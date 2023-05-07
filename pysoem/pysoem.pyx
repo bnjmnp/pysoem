@@ -238,7 +238,7 @@ cdef class CdefMaster:
         for slave in self.slaves:
             cd = slave._cd
             if cd.exc_raised:
-                raise cd.exc_info[0],cd.exc_info[1],cd.exc_info[2]
+                raise cd.exc_info[0], cd.exc_info[1], cd.exc_info[2]
         logger.debug('io map size: {}'.format(ret_val))
         # raise an exception if one or more mailbox errors occured within ecx_config_map_group call
         error_list = self._collect_mailbox_errors()
@@ -549,6 +549,7 @@ class WkcError(Exception):
 
 cdef class _CallbackData:
     cdef:
+        object slave
         object func
         object exc_raised
         object exc_info
@@ -590,6 +591,7 @@ cdef class CdefSlave:
     id = property(_get_eep_id)
     rev = property(_get_eep_rev)
     config_func = property(_get_PO2SOconfig, _set_PO2SOconfig)
+    setup_func = property(_get_PO2SOconfigEx, _set_PO2SOconfigEx)
     state = property(_get_state, _set_state)
     input = property(_get_input)
     output = property(_get_output, _set_output)
@@ -600,6 +602,7 @@ cdef class CdefSlave:
     def __init__(self, pos):
         self._pos = pos
         self._cd = _CallbackData()
+        self._cd.slave = self
 
     def dc_sync(self, act, sync0_cycle_time, sync0_shift_time=0, sync1_cycle_time=None):
         """Activate or deactivate SYNC pulses at the slave.
@@ -962,9 +965,19 @@ cdef class CdefSlave:
         return self._ec_slave.eep_rev
         
     def _get_PO2SOconfig(self):
-        """Slaves callback function that is called during config_init.
+        """Slaves callback function that is called during config_map.
         
         When the state changes from Pre-Operational state to Operational state."""
+        return <object>self._ec_slave.user
+
+    def _get_PO2SOconfigEx(self):
+        """Alternative callback function that is called during config_map.
+
+        More precisely the function is called during the transition from Pre-Operational to Safe-Operational state.
+        Use this instead of the config_func. The difference is that the callbacks signature is fn(CdefSlave: slave).
+
+        .. versionadded:: 1.1.0
+        """
         return <object>self._ec_slave.user
     
     def _set_PO2SOconfig(self, value):
@@ -974,6 +987,14 @@ cdef class CdefSlave:
             self._ec_slave.PO2SOconfig = NULL
         else:
             self._ec_slave.PO2SOconfig = _xPO2SOconfig
+
+    def _set_PO2SOconfigEx(self, value):
+        self._cd.func = value
+        self._ec_slave.user = <void*>self._cd
+        if value is None:
+            self._ec_slave.PO2SOconfig = NULL
+        else:
+            self._ec_slave.PO2SOconfig = _xPO2SOconfigEx
 
     def _get_state(self):
         """Request a new state.
@@ -1149,4 +1170,15 @@ cdef int _xPO2SOconfig(cpysoem.uint16 slave, void* user):
         (<object>cd.func)(slave-1)
     except:
         cd.exc_raised = True
-        cd.exc_info=sys.exc_info()
+        cd.exc_info = sys.exc_info()
+
+
+cdef int _xPO2SOconfigEx(cpysoem.uint16 slave, void* user):
+    cdef _CallbackData cd
+    cd = <object>user
+    cd.exc_raised = False
+    try:
+        (<object>cd.func)(cd.slave)
+    except:
+        cd.exc_raised = True
+        cd.exc_info = sys.exc_info()

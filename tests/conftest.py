@@ -13,7 +13,7 @@ def pytest_addoption(parser):
 
 
 class PySoemTestEnvironment:
-    """Setup a basic pysoem test fixture that is needed for most of tests"""
+    """Setup a basic pysoem test fixture that is needed for most of the tests"""
 
     BECKHOFF_VENDOR_ID = 0x0002
     EK1100_PRODUCT_CODE = 0x044c2c52
@@ -36,6 +36,7 @@ class PySoemTestEnvironment:
 
         self.el3002_config_func = None
         self.el1259_config_func = None
+        self.el1259_setup_func = None
         self._expected_slave_layout = None
 
     def config_init(self):
@@ -74,6 +75,9 @@ class PySoemTestEnvironment:
             assert slave.man == self._expected_slave_layout[i].vendor_id
             assert slave.id == self._expected_slave_layout[i].product_code
             slave.config_func = self._expected_slave_layout[i].config_func
+            # use the setup_func instead of the config_func
+            if self._expected_slave_layout[i].name == 'EL1259' and self.el1259_setup_func is not None:
+                slave.setup_func = self.el1259_setup_func
             slave.is_lost = False
 
         if self._is_overlapping_enabled:
