@@ -93,6 +93,10 @@ def find_adapters():
 
 @contextlib.contextmanager
 def open(ifname):
+    """Context manager function to create a Master object.
+
+    .. versionadded:: 1.1.0
+    """
     master = Master()
     master.open(ifname)
     yield master

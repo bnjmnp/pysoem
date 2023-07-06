@@ -1,2 +1,2 @@
-__version__ = '1.0.8-post.1'
+__version__ = '1.1.0'
 from .pysoem import *

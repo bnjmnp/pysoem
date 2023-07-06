@@ -71,6 +71,13 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.1.0
+^^^^^^^
+* Changed the data type for the ``name`` attribute of SDO info CdefCoeObject and CdefCoeObjectEntry, they are of type bytes now instead of a regular Python 3 string.
+* Also changed the ``desc`` attribute of the ``find_adapters()`` list elements to ``bytes``.
+* Introduces the ``open()`` context manager function.
+* Adds the ``setup_func`` that will maybe later replace the ``config_func``.
+
 v1.0.8
 ^^^^^^^
 * Version bump only to re-upload to PyPI with windows-wheel for Python 3.11
