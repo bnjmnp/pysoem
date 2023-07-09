@@ -71,6 +71,10 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.1.1
+^^^^^^^
+* Adds function ``_disable_complete_access()`` that stops config_map() from using "complete access" for SDO requests.
+
 v1.1.0
 ^^^^^^^
 * Changed the data type for the ``name`` attribute of SDO info CdefCoeObject and CdefCoeObjectEntry, they are of type bytes now instead of a regular Python 3 string.

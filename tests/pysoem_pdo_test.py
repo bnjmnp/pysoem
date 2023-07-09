@@ -9,8 +9,9 @@ import pysoem
 
 class El1259ConfigFunction:
 
-    def __init__(self, device):
+    def __init__(self, device, disable_complete_access=False):
         self._device = device
+        self._disable_complete_access = disable_complete_access
 
     def fn(self, slave_pos):
         """
@@ -35,6 +36,9 @@ class El1259ConfigFunction:
         self._device.sdo_write(0x1c13, 0, tx_map_obj_bytes, True)
 
         self._device.dc_sync(1, 1000000)
+
+        if self._disable_complete_access:
+            self._device._disable_complete_access()
 
 
 @pytest.mark.parametrize('overlapping_enable', [False, True])
@@ -62,3 +66,14 @@ def test_io_toggle(pysoem_env, overlapping_enable):
         el1259.output = bytes(tmp)
         time.sleep(0.1)
         assert el1259.input[in_offset] & 0x04 == 0x00
+
+
+@pytest.mark.parametrize('disable_complete_access', [False, True])
+def test_disable_complete_access(pysoem_env, disable_complete_access):
+    """Very basic sanity check if disable_complete_access does not do any damage."""
+    pysoem_env.config_init()
+    el1259 = pysoem_env.get_el1259()
+    pysoem_env.el1259_config_func = El1259ConfigFunction(el1259, disable_complete_access).fn
+    pysoem_env.config_map()
+    pysoem_env.go_to_op_state()
+    time.sleep(1)

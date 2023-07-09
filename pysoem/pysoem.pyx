@@ -41,6 +41,13 @@ ECT_REG_WD_TIME_PROCESSDATA = 0x0420
 ECT_REG_SM0 = 0x0800
 ECT_REG_SM1 = ECT_REG_SM0 + 0x08
 
+ECT_COEDET_SDO       = 0x01
+ECT_COEDET_SDOINFO   = 0x02
+ECT_COEDET_PDOASSIGN = 0x04
+ECT_COEDET_PDOCONFIG = 0x08
+ECT_COEDET_UPLOAD    = 0x10
+ECT_COEDET_SDOCA     = 0x20
+
 
 cpdef enum ec_datatype:
     ECT_BOOLEAN         = 0x0001,
@@ -908,6 +915,19 @@ cdef class CdefSlave:
         self._fpwr(wd_type_to_reg_map[wd_type],
                    wd_time_reg.to_bytes(2, byteorder='little', signed=False),
                    fprd_fpwr_timeout_us)
+
+    def _disable_complete_access(self):
+        """Helper function that stops config_map() from using "complete access" for SDO requests for this device.
+
+        This should only be used if your device has issues handling complete access requests but the CoE details of the
+        SII tells that SDO complete access is supported by the device. If you need this function something is wrong
+        with your device and you should contact the manufacturer about this issue.
+
+        .. warning:: This is experimental.
+
+        .. versionadded:: 1.1.1
+        """
+        self._ec_slave.CoEdetails &= ~ECT_COEDET_SDOCA
 
     def _fprd(self, int address, int size, timeout_us=2000):
         """Send and receive of the FPRD cmd primitive (Configured Address Physical Read)."""
