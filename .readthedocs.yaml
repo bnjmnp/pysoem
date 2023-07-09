@@ -5,6 +5,9 @@ build:
   tools:
     python: "3.11"
 
+submodules:
+  include: all
+
 sphinx:
   configuration: docs/source/conf.py
 
