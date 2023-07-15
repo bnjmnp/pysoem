@@ -28,6 +28,11 @@ elif sys.platform.startswith('linux'):
     soem_lib_dirs = []
     soem_libs = ['pthread', 'rt'] 
     os_name = 'linux'
+elif sys.platform.startswith('darwin'):
+    soem_macros = []
+    soem_lib_dirs = []
+    soem_libs = ['pthread', 'pcap']
+    os_name = 'macosx'
 
 soem_macros.append(('EC_VER2', ''))
 
