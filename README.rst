@@ -71,7 +71,7 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
-v1.1.1
+v1.1.3
 ^^^^^^^
 * Adds function ``_disable_complete_access()`` that stops config_map() from using "complete access" for SDO requests.
 

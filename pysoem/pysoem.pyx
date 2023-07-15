@@ -925,7 +925,7 @@ cdef class CdefSlave:
 
         .. warning:: This is experimental.
 
-        .. versionadded:: 1.1.1
+        .. versionadded:: 1.1.3
         """
         self._ec_slave.CoEdetails &= ~ECT_COEDET_SDOCA
 
