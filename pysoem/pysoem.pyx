@@ -1186,7 +1186,7 @@ cdef class CdefCoeObjectEntry:
         return self._ex_oelist.ObjAccess[self._item]
         
 
-cdef int _xPO2SOconfig(cpysoem.uint16 slave, void* user):
+cdef int _xPO2SOconfig(cpysoem.uint16 slave, void* user) noexcept:
     cdef _CallbackData cd
     cd = <object>user
     cd.exc_raised = False
@@ -1197,7 +1197,7 @@ cdef int _xPO2SOconfig(cpysoem.uint16 slave, void* user):
         cd.exc_info = sys.exc_info()
 
 
-cdef int _xPO2SOconfigEx(cpysoem.uint16 slave, void* user):
+cdef int _xPO2SOconfigEx(cpysoem.uint16 slave, void* user) noexcept:
     cdef _CallbackData cd
     cd = <object>user
     cd.exc_raised = False
