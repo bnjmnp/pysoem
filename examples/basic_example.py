@@ -79,8 +79,6 @@ class BasicExample:
             "Bx" + "".join(["H" for _ in range(len(rx_map_obj))]), len(rx_map_obj), *rx_map_obj)
         slave.sdo_write(index=0x1C12, subindex=0, data=rx_map_obj_bytes, ca=True)
 
-        slave.dc_sync(act=True, sync0_cycle_time=10_000_000)  # time is given in ns -> 10,000,000ns = 10ms
-
     def _processdata_thread(self):
         """Background thread that sends and receives the process-data frame in a 10ms interval."""
         while not self._pd_thread_stop_event.is_set():
@@ -139,6 +137,8 @@ class BasicExample:
         if self._master.state_check(pysoem.SAFEOP_STATE, timeout=50_000) != pysoem.SAFEOP_STATE:
             self._master.close()
             raise BasicExampleError("not all slaves reached SAFEOP state")
+        
+        slave.dc_sync(act=True, sync0_cycle_time=10_000_000)  # time is given in ns -> 10,000,000ns = 10ms
 
         self._master.state = pysoem.OP_STATE
 
