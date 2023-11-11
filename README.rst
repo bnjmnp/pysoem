@@ -28,7 +28,6 @@ Linux
 ^^^^^
 
 * Python 3
-* GCC (installed on your machine)
 * Python scripts that use PySOEM must be executed under administrator privileges
 
 Windows
@@ -38,6 +37,11 @@ Windows
 * `Npcap <https://nmap.org/npcap/>`_ [*]_ or `WinPcap <https://www.winpcap.org/>`_
 
 .. [*] Make sure you check "Install Npcap in WinPcap API-compatible Mode" during the install
+
+macOS (new with PySOEM 1.1.5)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Python 3
 
 Installation
 ------------
@@ -70,6 +74,14 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 
 Changes
 -------
+
+v1.1.5
+^^^^^^^
+* Adds support for redundancy mode, ``master.open()`` provides now an optional second parameter for the redundancy port.
+
+v1.1.4
+^^^^^^^
+* Fixes Cython compiling issues.
 
 v1.1.3
 ^^^^^^^
