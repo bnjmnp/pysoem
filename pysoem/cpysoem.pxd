@@ -17,6 +17,7 @@ cdef extern from "ethercat.h":
     
     DEF EC_MAXBUF = 16
     DEF EC_MAXMBX = 1486
+    DEF EC_BUFSIZE = 1518
     
     ec_adaptert* ec_find_adapters()
         
@@ -34,6 +35,8 @@ cdef extern from "ethercat.h":
     ctypedef float               float32
     ctypedef double              float64
     ctypedef uint8               ec_mbxbuft[EC_MAXMBX]
+
+    ctypedef uint8               ec_bufT[EC_BUFSIZE]
     
     ctypedef struct ec_timet:
         uint32 sec
@@ -82,10 +85,21 @@ cdef extern from "ethercat.h":
     # from nicdrv.h
         
     ctypedef struct ec_stackT:
-        pass
+        int     *sock
+        ec_bufT *(*txbuf) #[EC_MAXBUF]
+        int     *(*txbuflength) #[EC_MAXBUF]
+        ec_bufT *tempbuf
+        ec_bufT *(*rxbuf) #[EC_MAXBUF]
+        int     *(*rxbufstat) #[EC_MAXBUF]
+        int     *(*rxsa) #[EC_MAXBUF]
         
     ctypedef struct ecx_redportt:
-        pass
+        ec_stackT stack
+        int       sockhandle
+        ec_bufT   *rxbuf #[EC_MAXBUF]
+        int       *rxbufstat #[EC_MAXBUF]
+        int       *rxsa #[EC_MAXBUF]
+        ec_bufT   tempinbuf
         
     ctypedef struct ecx_portt:
         pass
@@ -285,6 +299,7 @@ cdef extern from "ethercat.h":
         char   **Name #[EC_MAXOELIST][EC_MAXNAME+1]
     
     int ecx_init(ecx_contextt* context, char* ifname)
+    int ecx_init_redundant(ecx_contextt *context, ecx_redportt *redport, const char *ifname, char *if2name)
     void ecx_close(ecx_contextt *context)
     int ecx_config_init(ecx_contextt *context, uint8 usetable)
     int ecx_config_map_group(ecx_contextt *context, void *pIOmap, uint8 group)

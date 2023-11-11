@@ -34,8 +34,9 @@ class Device:
 
 
 class BasicExample:
-    def __init__(self, ifname):
+    def __init__(self, ifname, ifname_red):
         self._ifname = ifname
+        self._ifname_red = ifname_red
         self._pd_thread_stop_event = threading.Event()
         self._ch_thread_stop_event = threading.Event()
         self._actual_wkc = 0
@@ -119,7 +120,7 @@ class BasicExample:
             print("stopped")
 
     def run(self):
-        self._master.open(self._ifname)
+        self._master.open(self._ifname, self._ifname_red)
 
         if not self._master.config_init() > 0:
             self._master.close()
@@ -226,10 +227,11 @@ class BasicExampleError(Exception):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example code for PySOEM.")
     parser.add_argument("iface", type=str, help="ID of the network adapter used.")
+    parser.add_argument("ifname_red", nargs="?", type=str, help="Optional: ID of the second network adapter used (for redundancy).")
     args = parser.parse_args()
 
     try:
-        BasicExample(args.iface).run()
+        BasicExample(args.iface, args.ifname_red).run()
     except BasicExampleError as err:
         print(f"{os.path.basename(__file__)} failed: {err.message}")
         sys.exit(1)

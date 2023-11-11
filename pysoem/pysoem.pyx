@@ -207,17 +207,22 @@ cdef class CdefMaster:
         self._settings.sdo_read_timeout = &self.sdo_read_timeout
         self._settings.sdo_write_timeout = &self.sdo_write_timeout
         
-    def open(self, ifname):
+    def open(self, ifname, ifname_red=None):
         """Initialize and open network interface.
         
         Args:
             ifname(str): Interface name. (see find_adapters)
+            ifname_red(:obj:`str`, optional): Interface name of the second network interface card for redundancy.
+                Put to None if not used.
         
         Raises:
             ConnectionError: When the specified interface dose not exist or
                 you have no permission to open the interface
         """
-        ret_val = cpysoem.ecx_init(&self._ecx_contextt, ifname.encode('utf8'))
+        if ifname_red is None:
+            ret_val = cpysoem.ecx_init(&self._ecx_contextt, ifname.encode('utf8'))
+        else:
+            ret_val = cpysoem.ecx_init_redundant(&self._ecx_contextt, &self._ecx_redport, ifname.encode('utf8'), ifname_red.encode('utf8'))
         if ret_val == 0:
             raise ConnectionError('could not open interface {}'.format(ifname))
         
