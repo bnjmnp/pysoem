@@ -557,10 +557,12 @@ class WkcError(Exception):
 
     Attributes:
         message (str): error message
+        wkc (int): Working counter
     """
 
-    def __init__(self, message=None):
+    def __init__(self, message=None, wkc=None):
         self.message = message
+        self.wkc = wkc
 
 
 cdef class _CallbackData:
@@ -655,6 +657,7 @@ cdef class CdefSlave:
             SdoError: if write fails, the exception includes the SDO abort code  
             MailboxError: on errors in the mailbox protocol
             PacketError: on packet level error
+            WkcError: if working counter is not higher than 0, the exception includes the working counter
         """
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
@@ -682,6 +685,11 @@ cdef class CdefSlave:
             assert err.Slave == self._pos
             self._raise_exception(&err)
 
+        if not result > 0:
+            if pbuf != std_buffer:
+                    PyMem_Free(pbuf)
+            raise WkcError(wkc=result)
+
         try:
             return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
         finally:
@@ -701,6 +709,7 @@ cdef class CdefSlave:
             SdoError: if write fails, the exception includes the SDO abort code  
             MailboxError: on errors in the mailbox protocol
             PacketError: on packet level error
+            WkcError: if working counter is not higher than 0, the exception includes the working counter
         """          
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca,
@@ -709,6 +718,9 @@ cdef class CdefSlave:
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
             self._raise_exception(&err)
+
+        if not result > 0:
+            raise WkcError(wkc=result)
 
     def mbx_receive(self):
         """Read out the slaves out mailbox - to check for emergency messages.
