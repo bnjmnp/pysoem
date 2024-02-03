@@ -75,6 +75,11 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.1.6
+^^^^^^^
+* Adds working counter check on SDO read and write.
+* Fixes issues with ``config_init()`` when it's called multiple times.
+
 v1.1.5
 ^^^^^^^
 * Adds support for redundancy mode, ``master.open()`` provides now an optional second parameter for the redundancy port.
