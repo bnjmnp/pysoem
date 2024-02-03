@@ -201,7 +201,7 @@ cdef class CdefMaster:
         self._ecx_contextt.FOEhook = NULL
         self._ecx_contextt.manualstatechange = 0
         
-        self.slaves = []
+        self.slaves = None
         self.sdo_read_timeout = 700000
         self.sdo_write_timeout = 700000
         self._settings.sdo_read_timeout = &self.sdo_read_timeout
@@ -235,6 +235,7 @@ cdef class CdefMaster:
         Returns:
             int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
+        self.slaves = []
         ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
         if ret_val > 0:
           for i in range(self._ec_slavecount):
