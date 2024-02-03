@@ -74,3 +74,14 @@ def test_setup_function(pysoem_env):
     pysoem_env.config_map()  # el1259_setup_func is expected to be called here
 
     assert setup_func_was_called
+
+
+def test_call_config_init_twice(pysoem_env):
+    """In older versions of pysoem there was an issue calling config_init() multiple times.
+
+    Every time config_init() was called again, the slaves list was extended not updated.
+    """
+    pysoem_env.config_init()
+    assert len(pysoem_env.get_master().slaves) == len(pysoem_env._expected_slave_layout)
+    pysoem_env.config_init()
+    assert len(pysoem_env.get_master().slaves) == len(pysoem_env._expected_slave_layout)
