@@ -745,7 +745,10 @@ cdef class CdefSlave:
 
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
-            self._raise_exception(&err)
+            if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+                self._on_emergency(&err)
+            else:
+                self._raise_exception(&err)
 
         return wkt
         
