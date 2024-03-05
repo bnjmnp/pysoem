@@ -36,9 +36,9 @@ elif sys.platform.startswith('darwin'):
 
 soem_macros.append(('EC_VER2', ''))
 
-soem_sources.extend([os.path.join('.', 'soem', 'osal', os_name, 'osal.c'),
+soem_sources.extend([os.path.join('.', 'osal', os_name, 'osal.c'),
                      os.path.join('.', 'soem', 'oshw', os_name, 'oshw.c'),
-                     os.path.join('.', 'soem', 'oshw', os_name, 'nicdrv.c'),
+                     os.path.join('.', 'oshw', os_name, 'nicdrv.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatbase.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatcoe.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatconfig.c'),
