@@ -473,13 +473,13 @@ static int ecx_waitinframe_red(ecx_portt *port, int idx, osal_timert *timer)
    int wkc  = EC_NOFRAME;
    int wkc2 = EC_NOFRAME;
    int primrx, secrx;
-   Py_BEGIN_ALLOW_THREADS
 
    /* if not in redundant mode then always assume secondary is OK */
    if (port->redstate == ECT_RED_NONE)
       wkc2 = 0;
    do
    {
+      osal_usleep(5);
       /* only read frame if not already in */
       if (wkc <= EC_NOFRAME)
          wkc  = ecx_inframe(port, idx, 0);
@@ -528,6 +528,7 @@ static int ecx_waitinframe_red(ecx_portt *port, int idx, osal_timert *timer)
          ecx_outframe(port, idx, 1);
          do
          {
+            osal_usleep(5);
             /* retrieve frame */
             wkc2 = ecx_inframe(port, idx, 1);
          } while ((wkc2 <= EC_NOFRAME) && !osal_timer_is_expired(&timer2));
@@ -539,7 +540,6 @@ static int ecx_waitinframe_red(ecx_portt *port, int idx, osal_timert *timer)
          }
       }
    }
-   Py_END_ALLOW_THREADS
    /* return WKC or EC_NOFRAME */
    return wkc;
 }

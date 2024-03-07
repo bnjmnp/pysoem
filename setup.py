@@ -23,22 +23,28 @@ if sys.platform.startswith('win'):
     soem_libs = ['wpcap', 'Packet', 'Ws2_32', 'Winmm']
     soem_inc_dirs.append(os.path.join('.', 'soem', 'oshw', 'win32', 'wpcap', 'Include'))
     os_name = 'win32'
+    osal_c_file = os.path.join('.', 'osal', os_name, 'osal.c')
+    nicdrv_c_file = os.path.join('.', 'oshw', os_name, 'nicdrv.c')
 elif sys.platform.startswith('linux'):
     soem_macros = []
     soem_lib_dirs = []
     soem_libs = ['pthread', 'rt'] 
     os_name = 'linux'
+    osal_c_file = os.path.join('.', 'soem', 'osal', os_name, 'osal.c')
+    nicdrv_c_file = os.path.join('.', 'soem', 'oshw', os_name, 'nicdrv.c')
 elif sys.platform.startswith('darwin'):
     soem_macros = []
     soem_lib_dirs = []
     soem_libs = ['pthread', 'pcap']
     os_name = 'macosx'
+    osal_c_file = os.path.join('.', 'soem', 'osal', os_name, 'osal.c')
+    nicdrv_c_file = os.path.join('.', 'soem', 'oshw', os_name, 'nicdrv.c')
 
 soem_macros.append(('EC_VER2', ''))
 
-soem_sources.extend([os.path.join('.', 'osal', os_name, 'osal.c'),
+soem_sources.extend([osal_c_file,
                      os.path.join('.', 'soem', 'oshw', os_name, 'oshw.c'),
-                     os.path.join('.', 'oshw', os_name, 'nicdrv.c'),
+                     nicdrv_c_file,
                      os.path.join('.', 'soem', 'soem', 'ethercatbase.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatcoe.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatconfig.c'),
