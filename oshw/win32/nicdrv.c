@@ -47,6 +47,9 @@
 
 #endif
 
+/** delay in us for ecx_waitinframe_red loops */
+#define SLEEP_US 5
+
 /** Redundancy modes */
 enum
 {
@@ -479,7 +482,7 @@ static int ecx_waitinframe_red(ecx_portt *port, int idx, osal_timert *timer)
       wkc2 = 0;
    do
    {
-      osal_usleep(5);
+      osal_usleep(SLEEP_US);
       /* only read frame if not already in */
       if (wkc <= EC_NOFRAME)
          wkc  = ecx_inframe(port, idx, 0);
@@ -528,7 +531,7 @@ static int ecx_waitinframe_red(ecx_portt *port, int idx, osal_timert *timer)
          ecx_outframe(port, idx, 1);
          do
          {
-            osal_usleep(5);
+            osal_usleep(SLEEP_US);
             /* retrieve frame */
             wkc2 = ecx_inframe(port, idx, 1);
          } while ((wkc2 <= EC_NOFRAME) && !osal_timer_is_expired(&timer2));
