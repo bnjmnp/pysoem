@@ -682,7 +682,7 @@ cdef class CdefSlave:
                                               &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
 
         cdef cpysoem.ec_errort err
-        if cpysoem.ecx_poperror(self._ecx_contextt, &err):
+        while(cpysoem.ecx_poperror(self._ecx_contextt, &err)):
             assert err.Slave == self._pos
             if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
                 self._on_emergency(&err)
@@ -690,6 +690,7 @@ cdef class CdefSlave:
                 if pbuf != std_buffer:
                     PyMem_Free(pbuf)
                 self._raise_exception(&err)
+
         if not result > 0:
             if pbuf != std_buffer:
                     PyMem_Free(pbuf)
@@ -721,7 +722,7 @@ cdef class CdefSlave:
                                                size, <unsigned char*>data, self._the_masters_settings.sdo_write_timeout[0])
         
         cdef cpysoem.ec_errort err
-        if cpysoem.ecx_poperror(self._ecx_contextt, &err):
+        while(cpysoem.ecx_poperror(self._ecx_contextt, &err)):
             if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
                 self._on_emergency(&err)
             else:
@@ -959,13 +960,16 @@ cdef class CdefSlave:
 
         :param emcy: Emergency object.
         """
-        for callback in self._emcy_callbacks:
-            callback(Emergency(emcy.Slave, 
+        emergency_msg = Emergency(emcy.Slave, 
                                emcy.ErrorCode,
                                emcy.ErrorReg,
                                emcy.b1,
                                emcy.w1,
-                               emcy.w2))
+                               emcy.w2)
+        if len(self._emcy_callbacks) == 0:
+            logger.warning('Emergency message received. {}'.format(emergency_msg))
+        for callback in self._emcy_callbacks:
+            callback(emergency_msg)
 
     def _disable_complete_access(self):
         """Helper function that stops config_map() from using "complete access" for SDO requests for this device.
