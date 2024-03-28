@@ -459,7 +459,7 @@ class SdoError(Exception):
         self.desc = desc
 
 class Emergency(Exception):
-    """Sdo read or write abort
+    """Emergency message.
 
     Attributes:
         slave_pos (int): position of the slave
@@ -604,6 +604,7 @@ cdef class CdefSlave:
     cdef _pos # keep in mind that first slave has pos 1  
     cdef public _CallbackData _cd
     cdef cpysoem.ec_ODlistt _ex_odlist
+    cdef public _emcy_callbacks
 
     name = property(_get_name)
     man = property(_get_eep_man)
@@ -622,6 +623,7 @@ cdef class CdefSlave:
         self._pos = pos
         self._cd = _CallbackData()
         self._cd.slave = self
+        self._emcy_callbacks = []
 
     def dc_sync(self, act, sync0_cycle_time, sync0_shift_time=0, sync1_cycle_time=None):
         """Activate or deactivate SYNC pulses at the slave.
@@ -680,11 +682,14 @@ cdef class CdefSlave:
                                               &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
 
         cdef cpysoem.ec_errort err
-        if cpysoem.ecx_poperror(self._ecx_contextt, &err):
-            if pbuf != std_buffer:
-                PyMem_Free(pbuf)
+        while(cpysoem.ecx_poperror(self._ecx_contextt, &err)):
             assert err.Slave == self._pos
-            self._raise_exception(&err)
+            if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+                self._on_emergency(&err)
+            else:
+                if pbuf != std_buffer:
+                    PyMem_Free(pbuf)
+                self._raise_exception(&err)
 
         if not result > 0:
             if pbuf != std_buffer:
@@ -717,8 +722,11 @@ cdef class CdefSlave:
                                                size, <unsigned char*>data, self._the_masters_settings.sdo_write_timeout[0])
         
         cdef cpysoem.ec_errort err
-        if cpysoem.ecx_poperror(self._ecx_contextt, &err):
-            self._raise_exception(&err)
+        while(cpysoem.ecx_poperror(self._ecx_contextt, &err)):
+            if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+                self._on_emergency(&err)
+            else:
+                self._raise_exception(&err)
 
         if not result > 0:
             raise WkcError(wkc=result)
@@ -738,7 +746,10 @@ cdef class CdefSlave:
 
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
-            self._raise_exception(&err)
+            if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+                self._on_emergency(&err)
+            else:
+                self._raise_exception(&err)
 
         return wkt
         
@@ -934,6 +945,32 @@ cdef class CdefSlave:
                    wd_time_reg.to_bytes(2, byteorder='little', signed=False),
                    fprd_fpwr_timeout_us)
 
+    def add_emergency_callback(self, callback):
+        """Get notified on EMCY messages from this slave.
+
+        :param callback:
+            Callable which must take one argument of an
+            :class:`~Emergency` instance.
+        """
+        self._emcy_callbacks.append(callback)
+
+    cdef _on_emergency(self, cpysoem.ec_errort* emcy):
+        """Notify all emergency callbacks that an emergency message
+        was received.
+
+        :param emcy: Emergency object.
+        """
+        emergency_msg = Emergency(emcy.Slave, 
+                               emcy.ErrorCode,
+                               emcy.ErrorReg,
+                               emcy.b1,
+                               emcy.w1,
+                               emcy.w2)
+        if len(self._emcy_callbacks) == 0:
+            logger.warning('Emergency message received. {}'.format(emergency_msg))
+        for callback in self._emcy_callbacks:
+            callback(emergency_msg)
+
     def _disable_complete_access(self):
         """Helper function that stops config_map() from using "complete access" for SDO requests for this device.
 
@@ -973,13 +1010,6 @@ cdef class CdefSlave:
                            err.SubIdx,
                            err.AbortCode,
                            cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8'))
-        elif err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
-            raise Emergency(err.Slave,
-                            err.ErrorCode,
-                            err.ErrorReg,
-                            err.b1,
-                            err.w1,
-                            err.w2)
         elif err.Etype == cpysoem.EC_ERR_TYPE_MBX_ERROR:
             raise MailboxError(err.Slave,
                                err.ErrorCode,
