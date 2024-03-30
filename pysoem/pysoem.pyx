@@ -18,6 +18,7 @@ import logging
 import collections
 import time
 import contextlib
+import warnings
 
 from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
@@ -682,9 +683,10 @@ cdef class CdefSlave:
                                               &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
 
         cdef cpysoem.ec_errort err
-        while(cpysoem.ecx_poperror(self._ecx_contextt, &err)):
+        while cpysoem.ecx_poperror(self._ecx_contextt, &err):
             assert err.Slave == self._pos
-            if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+
+            if (err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY) and (len(self._emcy_callbacks) > 0):
                 self._on_emergency(&err)
             else:
                 if pbuf != std_buffer:
@@ -723,7 +725,7 @@ cdef class CdefSlave:
         
         cdef cpysoem.ec_errort err
         while(cpysoem.ecx_poperror(self._ecx_contextt, &err)):
-            if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+            if (err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY) and (len(self._emcy_callbacks) > 0):
                 self._on_emergency(&err)
             else:
                 self._raise_exception(&err)
@@ -746,7 +748,7 @@ cdef class CdefSlave:
 
         cdef cpysoem.ec_errort err
         if cpysoem.ecx_poperror(self._ecx_contextt, &err):
-            if err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+            if (err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY) and (len(self._emcy_callbacks) > 0):
                 self._on_emergency(&err)
             else:
                 self._raise_exception(&err)
@@ -966,8 +968,6 @@ cdef class CdefSlave:
                                emcy.b1,
                                emcy.w1,
                                emcy.w2)
-        if len(self._emcy_callbacks) == 0:
-            logger.warning('Emergency message received. {}'.format(emergency_msg))
         for callback in self._emcy_callbacks:
             callback(emergency_msg)
 
@@ -1010,6 +1010,14 @@ cdef class CdefSlave:
                            err.SubIdx,
                            err.AbortCode,
                            cpysoem.ec_sdoerror2string(err.AbortCode).decode('utf8'))
+        elif err.Etype == cpysoem.EC_ERR_TYPE_EMERGENCY:
+            warnings.warn('This way of catching emergency messages is deprecated, use the add_emergency_callback() function!', FutureWarning)
+            raise Emergency(err.Slave,
+                            err.ErrorCode,
+                            err.ErrorReg,
+                            err.b1,
+                            err.w1,
+                            err.w2)
         elif err.Etype == cpysoem.EC_ERR_TYPE_MBX_ERROR:
             raise MailboxError(err.Slave,
                                err.ErrorCode,
