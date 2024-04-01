@@ -177,11 +177,13 @@ def test_coe_emergency_legacy(xmc_device, mode):
                 xmc_device.mbx_receive()
             elif mode == 'sdo_read':
                 _ = xmc_device.sdo_read(0x1018, 1)
+        assert excinfo.value.slave_pos == 1
         assert excinfo.value.error_code == 0xFFFE
         assert excinfo.value.error_reg == 0x00
         assert excinfo.value.b1 == 0xAA
-        assert excinfo.value.w1 == 0x5555
-        assert excinfo.value.w2 == 0x5555
+        assert excinfo.value.w1 == 0x5150
+        assert excinfo.value.w2 == 0x5352
+        assert str(excinfo.value) == 'Slave 1:  fffe, 00, (aa,50,51,52,53)'
     assert len(record) == 1
     assert str(record[0].message) == 'This way of catching emergency messages is deprecated, use the add_emergency_callback() function!'
     # check if SDO communication is still working
@@ -208,13 +210,14 @@ def test_coe_emergency_new(xmc_device, mode):
         _ = xmc_device.sdo_read(0x1018, 1)
     assert len(emcy_consumer._pending_emcy_msg) == 1
     emcy_msg = emcy_consumer.pop_emcy_msg()
+    assert emcy_msg.slave_pos == 1
     assert emcy_msg.error_code == 0xFFFE
     assert emcy_msg.error_reg == 0x00
     assert emcy_msg.b1 == 0xAA
-    assert emcy_msg.w1 == 0x5555
-    assert emcy_msg.w2 == 0x5555
+    assert emcy_msg.w1 == 0x5150
+    assert emcy_msg.w2 == 0x5352
     assert len(emcy_consumer._pending_emcy_msg) == 0
-    print(emcy_msg)
+    assert str(emcy_msg) == 'Slave 1:  fffe, 00, (aa,50,51,52,53)'
     # check if SDO communication is still working
     for i in range(10):
         _ = xmc_device.sdo_read(0x1018, 1)

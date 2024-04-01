@@ -479,6 +479,11 @@ class Emergency(Exception):
         self.w1 = w1
         self.w2 = w2
 
+    def __str__(self):
+        b1w1w2_bytes = bytes([self.b1]) + self.w1.to_bytes(length=2, byteorder='little') + self.w2.to_bytes(length=2, byteorder='little')
+        b1w1w2_str = ','.join(format(x, '02x') for x in b1w1w2_bytes)
+        return f'Slave {self.slave_pos}:  {self.error_code:04x}, {self.error_reg:02x}, ({b1w1w2_str})'
+
 
 class SdoInfoError(Exception):
     """Errors during Object directory info read
