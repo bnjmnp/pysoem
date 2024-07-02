@@ -11,6 +11,10 @@
 #
 """PySOEM is a Cython wrapper for the SOEM library."""
 
+#
+# This will result in the creation of the `pysoem.pysoem` module.
+#
+
 cimport cpysoem
 
 import sys
