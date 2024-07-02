@@ -210,9 +210,16 @@ cdef class CdefMaster:
         
     def open(self, ifname, ifname_red=None):
         """Initialize and open network interface.
-        
+
+        On Linux the name of the interface is the same as usd by the system, e.g. ``eth0``, and as displayed by
+        ``ip addr``.
+
+        On Windows the names of the interfaces look like ``\\Device\\NPF_{1D123456-1E12-1C12-12F1-1234E123453B}``.
+        Finding the kind of name that SOEM expects is not straightforward. The most practical way is to use the
+        :func:`~find_adapters` method to find your available interfaces.
+
         Args:
-            ifname(str): Interface name. (see find_adapters)
+            ifname(str): Interface name.
             ifname_red(:obj:`str`, optional): Interface name of the second network interface card for redundancy.
                 Put to None if not used.
         
