@@ -11,6 +11,10 @@
 #
 """PySOEM is a Cython wrapper for the SOEM library."""
 
+#
+# This will result in the creation of the `pysoem.pysoem` module.
+#
+
 cimport cpysoem
 
 import sys
@@ -85,10 +89,10 @@ cdef struct CdefMasterSettings:
 
 def find_adapters():
     """Create a list of available network adapters.
-    
+
     Returns:
         list[Adapter]: Each element of the list has a name an desc attribute.
-    
+
     """
     cdef cpysoem.ec_adaptert* _ec_adapter = cpysoem.ec_find_adapters()
     Adapter = collections.namedtuple('Adapter', ['name', 'desc'])
@@ -110,7 +114,7 @@ def open(ifname):
     yield master
     master.close()
 
-    
+
 def al_status_code_to_string(code):
     """Look up text string that belongs to AL status code.
     
@@ -122,11 +126,11 @@ def al_status_code_to_string(code):
     
     """
     return cpysoem.ec_ALstatuscode2string(code).decode('utf8');
-    
-    
+
+
 class Master(CdefMaster):
     """Representing a logical EtherCAT master device.
-    
+
     For each network interface you can have a Master instance.
 
     Attributes:
@@ -135,8 +139,8 @@ class Master(CdefMaster):
         sdo_write_timeout: timeout for SDO write access for all slaves connected
     """
     pass
-    
-    
+
+
 cdef class CdefMaster:
     """Representing a logical EtherCAT master device.
     

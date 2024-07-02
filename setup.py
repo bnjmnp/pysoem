@@ -83,7 +83,7 @@ ext = '.pyx' if USE_CYTHON else '.c'
 extensions = [
     Extension(
         'pysoem.pysoem',
-        ['pysoem/pysoem'+ext] + soem_sources,
+        ['src/pysoem/pysoem'+ext] + soem_sources,
         define_macros=soem_macros,
         libraries=soem_libs,
         library_dirs=soem_lib_dirs,
@@ -96,7 +96,7 @@ if USE_CYTHON:
     extensions = cythonize(extensions, compiler_directives={"language_level": "2"})
 
 setup(name='pysoem',
-      version=find_version("pysoem", "__init__.py"),
+      version=find_version("src", "pysoem", "__init__.py"),
       description='Cython wrapper for the SOEM Library',
       author='Benjamin Partzsch',
       author_email='benjamin_partzsch@web.de',
@@ -105,6 +105,7 @@ setup(name='pysoem',
       long_description=readme(),
       ext_modules=extensions,
       packages=['pysoem'],
+      package_dir={"": "src"},
       project_urls={
         'Documentation': 'https://pysoem.readthedocs.io',
       },
