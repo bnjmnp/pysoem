@@ -141,6 +141,14 @@ class Master(CdefMaster):
     pass
 
 
+cdef enum:
+    EC_MAXSLAVE = 200
+    EC_MAXGROUP = 1
+    EC_MAXEEPBITMAP = 128
+    EC_MAXEEPBUF = EC_MAXEEPBITMAP * 32
+    EC_MAXMAPT = 8
+    EC_IOMAPSIZE = 4096
+
 cdef class CdefMaster:
     """Representing a logical EtherCAT master device.
     
@@ -148,13 +156,7 @@ cdef class CdefMaster:
     Master is a typical Python object, with all it's benefits over
     cdef classes. For example you can add new attributes dynamically.
     """
-    DEF EC_MAXSLAVE = 200
-    DEF EC_MAXGROUP = 1
-    DEF EC_MAXEEPBITMAP = 128
-    DEF EC_MAXEEPBUF = EC_MAXEEPBITMAP * 32
-    DEF EC_MAXMAPT = 8
-    DEF EC_IOMAPSIZE = 4096
-    
+
     cdef cpysoem.ec_slavet        _ec_slave[EC_MAXSLAVE]
     cdef int                      _ec_slavecount
     cdef cpysoem.ec_groupt        _ec_group[EC_MAXGROUP]
@@ -604,6 +606,11 @@ class SiiOffset:
     MBX_PROTO = 0x001C
 
 
+cdef enum:
+    EC_TIMEOUTRXM = 700000
+    STATIC_SDO_READ_BUFFER_SIZE = 256
+
+
 cdef class CdefSlave:
     """Represents a slave device
 
@@ -611,9 +618,6 @@ cdef class CdefSlave:
     by a Master instance on a successful config_init(). They then can be 
     obtained by slaves list
     """
-    
-    DEF EC_TIMEOUTRXM = 700000
-    DEF STATIC_SDO_READ_BUFFER_SIZE = 256
     
     cdef cpysoem.ecx_contextt* _ecx_contextt
     cdef cpysoem.ec_slavet* _ec_slave

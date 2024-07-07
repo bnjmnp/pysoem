@@ -19,9 +19,10 @@ from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, u
 
 cdef extern from "ethercat.h":
     
-    DEF EC_MAXBUF = 16
-    DEF EC_MAXMBX = 1486
-    DEF EC_BUFSIZE = 1518
+    cdef enum:
+        EC_MAXBUF = 16
+        EC_MAXMBX = 1486
+        EC_BUFSIZE = 1518
     
     ec_adaptert* ec_find_adapters()
         
