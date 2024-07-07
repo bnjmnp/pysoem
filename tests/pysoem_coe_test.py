@@ -141,7 +141,7 @@ def test_sdo_info_var(el1259):
 
     assert b'Device type' == obj_0x1000.name
     assert obj_0x1000.object_code == 7
-    assert obj_0x1000.data_type == pysoem.ECT_UNSIGNED32
+    assert obj_0x1000.data_type == pysoem.ec_datatype.ECT_UNSIGNED32
     assert obj_0x1000.bit_length == 32
     assert obj_0x1000.obj_access == 0x0007
 
@@ -155,7 +155,7 @@ def test_sdo_info_rec(el1259):
 
     entry_vendor_id = obj_0x1018.entries[1]
     assert entry_vendor_id.name == b'Vendor ID'
-    assert entry_vendor_id.data_type == pysoem.ECT_UNSIGNED32
+    assert entry_vendor_id.data_type == pysoem.ec_datatype.ECT_UNSIGNED32
     assert entry_vendor_id.bit_length == 32
     assert entry_vendor_id.obj_access == 0x0007
 
