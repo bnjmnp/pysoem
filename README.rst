@@ -75,6 +75,11 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.1.7
+^^^^^^^
+* Adds ``add_emergency_callback()`` to allow a better handling of emergency messages.
+* Improves auto-completion.
+
 v1.1.6
 ^^^^^^^
 * Adds working counter check on SDO read and write.
@@ -130,7 +135,7 @@ v1.0.2
 * Licence change to MIT licence
 * Introduces configurable timeouts for SDO read and SDO write
 * Improved API docs
-  
+
 v1.0.1
 ^^^^^^^
 * API change: remove the size parameter for ``foe_write``
