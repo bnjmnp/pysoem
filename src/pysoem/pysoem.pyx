@@ -1068,6 +1068,9 @@ cdef class CdefSlave:
         """Slaves callback function that is called during config_map.
         
         When the state changes from Pre-Operational state to Operational state."""
+        if not self._ec_slave.user:
+            return None
+
         return <object>self._ec_slave.user
 
     def _get_PO2SOconfigEx(self):
@@ -1078,6 +1081,9 @@ cdef class CdefSlave:
 
         .. versionadded:: 1.1.0
         """
+        if not self._ec_slave.user:
+            return None
+
         return <object>self._ec_slave.user
     
     def _set_PO2SOconfig(self, value):
