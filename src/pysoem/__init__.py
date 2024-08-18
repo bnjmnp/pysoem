@@ -1,4 +1,4 @@
-__version__ = '1.1.8-wip'
+__version__ = '1.1.8'
 
 
 # Classes:
