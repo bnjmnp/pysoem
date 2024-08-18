@@ -18,7 +18,7 @@ jobs:
           submodules: recursive
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v2.20.0
 
       - uses: actions/upload-artifact@v4
         with:
@@ -53,8 +53,8 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - uses: pypa/gh-action-pypi-publish@v1.8.11
+      - uses: pypa/gh-action-pypi-publish@v1
         with:
           user: __token__
           password: ${{ secrets.TEST_PYPI_PYSOEM_ACCESS_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
+          repository-url: https://test.pypi.org/legacy/
