@@ -179,6 +179,7 @@ cdef class CdefMaster:
     cdef CdefMasterSettings _settings
     cdef public int sdo_read_timeout
     cdef public int sdo_write_timeout
+    cdef readonly cpysoem.boolean context_initialized
 
     state = property(_get_state, _set_state)
     expected_wkc  = property(_get_expected_wkc)
@@ -213,6 +214,7 @@ cdef class CdefMaster:
         self.sdo_write_timeout = 700000
         self._settings.sdo_read_timeout = &self.sdo_read_timeout
         self._settings.sdo_write_timeout = &self.sdo_write_timeout
+        self.context_initialized = False
         
     def open(self, ifname, ifname_red=None):
         """Initialize and open network interface.
@@ -239,6 +241,13 @@ cdef class CdefMaster:
             ret_val = cpysoem.ecx_init_redundant(&self._ecx_contextt, &self._ecx_redport, ifname.encode('utf8'), ifname_red.encode('utf8'))
         if ret_val == 0:
             raise ConnectionError('could not open interface {}'.format(ifname))
+
+        self.context_initialized = True
+
+    def __check_context_is_initialized(self):
+        if not self.context_initialized:
+            raise EnvironmentError("Soem Context is not initialized or has been closed. Call Master.open() first")
+
         
     def config_init(self, usetable=False):
         """Enumerate and init all slaves.
@@ -249,6 +258,7 @@ cdef class CdefMaster:
         Returns:
             int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
+        self.__check_context_is_initialized()
         self.slaves = []
         ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
         if ret_val > 0:
@@ -262,6 +272,7 @@ cdef class CdefMaster:
         Returns:
             int: IO map size (sum of all PDO in an out data)
         """
+        self.__check_context_is_initialized()
         cdef _CallbackData cd
         # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
         ret_val = cpysoem.ecx_config_map_group(&self._ecx_contextt, &self.io_map, 0)
@@ -283,6 +294,7 @@ cdef class CdefMaster:
         Returns:
             int: IO map size (sum of all PDO in an out data)
         """
+        self.__check_context_is_initialized()
         cdef _CallbackData cd
         # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
         ret_val = cpysoem.ecx_config_overlap_map_group(&self._ecx_contextt, &self.io_map, 0)
@@ -326,6 +338,7 @@ cdef class CdefMaster:
         Returns:
             bool: if slaves are found with DC
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_configdc(&self._ecx_contextt)
         
     def close(self):
@@ -333,14 +346,16 @@ cdef class CdefMaster:
         
         """
         # ecx_close returns nothing
+        self.context_initialized = False
         cpysoem.ecx_close(&self._ecx_contextt)
-        
+
     def read_state(self):
         """Read all slaves states.
         
         Returns:
             int: lowest state found
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_readstate(&self._ecx_contextt)
         
     def write_state(self):
@@ -351,6 +366,7 @@ cdef class CdefMaster:
         Returns:
             int: Working counter or EC_NOFRAME
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_writestate(&self._ecx_contextt, 0)
         
     def state_check(self, int expected_state, timeout=50000):
@@ -366,6 +382,7 @@ cdef class CdefMaster:
         Returns:
             int: Requested state, or found state after timeout
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_statecheck(&self._ecx_contextt, 0, expected_state, timeout)
         
     def send_processdata(self):
@@ -382,6 +399,7 @@ cdef class CdefMaster:
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_send_processdata(&self._ecx_contextt)
 
     def send_overlap_processdata(self):
@@ -390,6 +408,7 @@ cdef class CdefMaster:
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
     
     def receive_processdata(self, timeout=2000):
@@ -404,6 +423,7 @@ cdef class CdefMaster:
         Returns
             int: Working Counter
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
     
     def _get_slave(self, int pos):
