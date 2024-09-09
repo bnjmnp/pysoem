@@ -433,6 +433,7 @@ cdef class CdefMaster:
             raise IndexError('requested slave device is not available')
         ethercat_slave = CdefSlave(pos+1)
         ethercat_slave._ecx_contextt = &self._ecx_contextt
+        ethercat_slave.context_initialized = &self.context_initialized
         ethercat_slave._ec_slave = &self._ec_slave[pos+1] # +1 as _ec_slave[0] is reserved
         ethercat_slave._the_masters_settings = &self._settings
         return ethercat_slave
@@ -640,6 +641,7 @@ cdef class CdefSlave:
     """
     
     cdef cpysoem.ecx_contextt* _ecx_contextt
+    cdef cpysoem.boolean* context_initialized
     cdef cpysoem.ec_slavet* _ec_slave
     cdef CdefMasterSettings* _the_masters_settings
     cdef _pos # keep in mind that first slave has pos 1  
@@ -666,6 +668,10 @@ cdef class CdefSlave:
         self._cd.slave = self
         self._emcy_callbacks = []
 
+    def __check_context_is_initialized(self):
+        if not self.context_initialized:
+            raise EnvironmentError("Soem Context is not initialized or has been closed. Call Master.open() first")
+
     def dc_sync(self, act, sync0_cycle_time, sync0_shift_time=0, sync1_cycle_time=None):
         """Activate or deactivate SYNC pulses at the slave.
 
@@ -676,6 +682,7 @@ cdef class CdefSlave:
             sync1_cycle_time (int): Optional cycltime for SYNC1 in ns. This time is a delta time in relation to SYNC0.
                                     If CylcTime1 = 0 then SYNC1 fires at the same time as SYNC0.
         """
+        self.__check_context_is_initialized()
     
         if sync1_cycle_time is None:
             cpysoem.ecx_dcsync0(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync0_shift_time)
@@ -705,6 +712,8 @@ cdef class CdefSlave:
         """
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
+
+        self.__check_context_is_initialized()
         
         cdef unsigned char* pbuf
         cdef uint8_t std_buffer[STATIC_SDO_READ_BUFFER_SIZE]
@@ -759,6 +768,8 @@ cdef class CdefSlave:
             PacketError: on packet level error
             WkcError: if working counter is not higher than 0, the exception includes the working counter
         """          
+        self.__check_context_is_initialized()
+
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca,
                                                size, <unsigned char*>data, self._the_masters_settings.sdo_write_timeout[0])
@@ -782,6 +793,8 @@ cdef class CdefSlave:
         :rtype: int
         :raises Emergency: if an emergency message was received
         """
+        self.__check_context_is_initialized()
+
         cdef cpysoem.ec_mbxbuft buf
         cpysoem.ec_clearmbx(&buf)
         cdef int wkt = cpysoem.ecx_mbxreceive(self._ecx_contextt, self._pos, &buf, 0)
@@ -800,10 +813,12 @@ cdef class CdefSlave:
 
         Note: The function does not check if the actual state is changed.
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_writestate(self._ecx_contextt, self._pos)
         
     def state_check(self, int expected_state, timeout=2000):
         """Wait for the slave to reach the state that was requested."""
+        self.__check_context_is_initialized()
         return cpysoem.ecx_statecheck(self._ecx_contextt, self._pos, expected_state, timeout)
         
     def reconfig(self, timeout=500):
@@ -813,6 +828,7 @@ cdef class CdefSlave:
         :return: Slave state
         :rtype: int
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_reconfig_slave(self._ecx_contextt, self._pos, timeout)
         
     def recover(self, timeout=500):
@@ -822,6 +838,7 @@ cdef class CdefSlave:
         :return: >0 if successful
         :rtype: int
         """
+        self.__check_context_is_initialized()
         return cpysoem.ecx_recover_slave(self._ecx_contextt, self._pos, timeout)
         
     def eeprom_read(self, int word_address, timeout=20000):
@@ -836,6 +853,7 @@ cdef class CdefSlave:
         Returns:
             bytes: EEPROM data
         """
+        self.__check_context_is_initialized()
         cdef uint32_t tmp = cpysoem.ecx_readeeprom(self._ecx_contextt, self._pos, word_address, timeout)
         return PyBytes_FromStringAndSize(<char*>&tmp, 4)
         
@@ -853,6 +871,7 @@ cdef class CdefSlave:
             EepromError: if write fails
             AttributeError: if data size is not 2
         """
+        self.__check_context_is_initialized()
         if not len(data) == 2:
             raise AttributeError()
         cdef uint16_t tmp
@@ -873,6 +892,8 @@ cdef class CdefSlave:
         # error handling
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
+
+        self.__check_context_is_initialized()
 
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
@@ -896,6 +917,8 @@ cdef class CdefSlave:
         """
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
+
+        self.__check_context_is_initialized()
 
         # prepare call of c function
         cdef unsigned char* pbuf
@@ -929,6 +952,8 @@ cdef class CdefSlave:
 
         .. versionadded:: 1.0.6
         """
+        self.__check_context_is_initialized()
+
         fpwr_timeout_us = 4000
         if mailbox == 'out':
             # Clear the slaves mailbox configuration.
@@ -967,6 +992,8 @@ cdef class CdefSlave:
 
         .. versionadded:: 1.0.6
         """
+        self.__check_context_is_initialized()
+
         fprd_fpwr_timeout_us = 4000
         wd_type_to_reg_map = {
             'pdi': ECT_REG_WD_TIME_PDI,
@@ -994,6 +1021,7 @@ cdef class CdefSlave:
             Callable which must take one argument of an
             :class:`~Emergency` instance.
         """
+        self.__check_context_is_initialized()
         self._emcy_callbacks.append(callback)
 
     cdef _on_emergency(self, cpysoem.ec_errort* emcy):
