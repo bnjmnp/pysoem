@@ -246,7 +246,7 @@ cdef class CdefMaster:
 
     def __check_context_is_initialized(self):
         if not self.context_initialized:
-            raise EnvironmentError("SOEM Context is not initialized or has been closed. Call Master.open() first")
+            raise UninitializedContextError("SOEM Context is not initialized or has been closed. Call Master.open() first")
 
         
     def config_init(self, usetable=False):
@@ -605,6 +605,10 @@ class WkcError(Exception):
         self.message = message
         self.wkc = wkc
 
+class UninitializedContextError(Exception):
+    """Error when a master or slave method is used and the context has not been initialized."""
+    pass
+
 
 cdef class _CallbackData:
     cdef:
@@ -670,7 +674,7 @@ cdef class CdefSlave:
 
     def __check_context_is_initialized(self):
         if not self.context_initialized:
-            raise EnvironmentError("SOEM Context is not initialized or has been closed. Call Master.open() first")
+            raise UninitializedContextError("SOEM Context is not initialized or has been closed. Call Master.open() first")
 
     def dc_sync(self, act, sync0_cycle_time, sync0_shift_time=0, sync1_cycle_time=None):
         """Activate or deactivate SYNC pulses at the slave.
