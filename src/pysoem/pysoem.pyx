@@ -244,7 +244,7 @@ cdef class CdefMaster:
 
         self.context_initialized = True
 
-    def __check_context_is_initialized(self):
+    def check_context_is_initialized(self):
         if not self.context_initialized:
             raise NetworkInterfaceNotOpenError("SOEM Network interface is not initialized or has been closed. Call Master.open() first")
 
@@ -258,7 +258,7 @@ cdef class CdefMaster:
         Returns:
             int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         self.slaves = []
         ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
         if ret_val > 0:
@@ -272,7 +272,7 @@ cdef class CdefMaster:
         Returns:
             int: IO map size (sum of all PDO in an out data)
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         cdef _CallbackData cd
         # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
         ret_val = cpysoem.ecx_config_map_group(&self._ecx_contextt, &self.io_map, 0)
@@ -294,7 +294,7 @@ cdef class CdefMaster:
         Returns:
             int: IO map size (sum of all PDO in an out data)
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         cdef _CallbackData cd
         # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
         ret_val = cpysoem.ecx_config_overlap_map_group(&self._ecx_contextt, &self.io_map, 0)
@@ -338,7 +338,7 @@ cdef class CdefMaster:
         Returns:
             bool: if slaves are found with DC
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         return cpysoem.ecx_configdc(&self._ecx_contextt)
         
     def close(self):
@@ -355,7 +355,7 @@ cdef class CdefMaster:
         Returns:
             int: lowest state found
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         return cpysoem.ecx_readstate(&self._ecx_contextt)
         
     def write_state(self):
@@ -366,7 +366,7 @@ cdef class CdefMaster:
         Returns:
             int: Working counter or EC_NOFRAME
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         return cpysoem.ecx_writestate(&self._ecx_contextt, 0)
         
     def state_check(self, int expected_state, timeout=50000):
@@ -382,7 +382,7 @@ cdef class CdefMaster:
         Returns:
             int: Requested state, or found state after timeout
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         return cpysoem.ecx_statecheck(&self._ecx_contextt, 0, expected_state, timeout)
         
     def send_processdata(self):
@@ -399,7 +399,7 @@ cdef class CdefMaster:
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         return cpysoem.ecx_send_processdata(&self._ecx_contextt)
 
     def send_overlap_processdata(self):
@@ -408,7 +408,7 @@ cdef class CdefMaster:
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
     
     def receive_processdata(self, timeout=2000):
@@ -423,7 +423,7 @@ cdef class CdefMaster:
         Returns
             int: Working Counter
         """
-        self.__check_context_is_initialized()
+        self.check_context_is_initialized()
         return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
     
     def _get_slave(self, int pos):
@@ -681,7 +681,7 @@ cdef class CdefSlave:
             sync1_cycle_time (int): Optional cycltime for SYNC1 in ns. This time is a delta time in relation to SYNC0.
                                     If CylcTime1 = 0 then SYNC1 fires at the same time as SYNC0.
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
     
         if sync1_cycle_time is None:
             cpysoem.ecx_dcsync0(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync0_shift_time)
@@ -712,7 +712,7 @@ cdef class CdefSlave:
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
         
         cdef unsigned char* pbuf
         cdef uint8_t std_buffer[STATIC_SDO_READ_BUFFER_SIZE]
@@ -767,7 +767,7 @@ cdef class CdefSlave:
             PacketError: on packet level error
             WkcError: if working counter is not higher than 0, the exception includes the working counter
         """          
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
 
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca,
@@ -792,7 +792,7 @@ cdef class CdefSlave:
         :rtype: int
         :raises Emergency: if an emergency message was received
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
 
         cdef cpysoem.ec_mbxbuft buf
         cpysoem.ec_clearmbx(&buf)
@@ -812,12 +812,12 @@ cdef class CdefSlave:
 
         Note: The function does not check if the actual state is changed.
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
         return cpysoem.ecx_writestate(self._ecx_contextt, self._pos)
         
     def state_check(self, int expected_state, timeout=2000):
         """Wait for the slave to reach the state that was requested."""
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
         return cpysoem.ecx_statecheck(self._ecx_contextt, self._pos, expected_state, timeout)
         
     def reconfig(self, timeout=500):
@@ -827,7 +827,7 @@ cdef class CdefSlave:
         :return: Slave state
         :rtype: int
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
         return cpysoem.ecx_reconfig_slave(self._ecx_contextt, self._pos, timeout)
         
     def recover(self, timeout=500):
@@ -837,7 +837,7 @@ cdef class CdefSlave:
         :return: >0 if successful
         :rtype: int
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
         return cpysoem.ecx_recover_slave(self._ecx_contextt, self._pos, timeout)
         
     def eeprom_read(self, int word_address, timeout=20000):
@@ -852,7 +852,7 @@ cdef class CdefSlave:
         Returns:
             bytes: EEPROM data
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
         cdef uint32_t tmp = cpysoem.ecx_readeeprom(self._ecx_contextt, self._pos, word_address, timeout)
         return PyBytes_FromStringAndSize(<char*>&tmp, 4)
         
@@ -870,7 +870,7 @@ cdef class CdefSlave:
             EepromError: if write fails
             AttributeError: if data size is not 2
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
         if not len(data) == 2:
             raise AttributeError()
         cdef uint16_t tmp
@@ -892,7 +892,7 @@ cdef class CdefSlave:
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
 
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
@@ -917,7 +917,7 @@ cdef class CdefSlave:
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
 
         # prepare call of c function
         cdef unsigned char* pbuf
@@ -951,7 +951,7 @@ cdef class CdefSlave:
 
         .. versionadded:: 1.0.6
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
 
         fpwr_timeout_us = 4000
         if mailbox == 'out':
@@ -991,7 +991,7 @@ cdef class CdefSlave:
 
         .. versionadded:: 1.0.6
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
 
         fprd_fpwr_timeout_us = 4000
         wd_type_to_reg_map = {
@@ -1020,7 +1020,7 @@ cdef class CdefSlave:
             Callable which must take one argument of an
             :class:`~Emergency` instance.
         """
-        self._master.__check_context_is_initialized()
+        self._master.check_context_is_initialized()
         self._emcy_callbacks.append(callback)
 
     cdef _on_emergency(self, cpysoem.ec_errort* emcy):
