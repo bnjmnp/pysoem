@@ -246,7 +246,7 @@ cdef class CdefMaster:
 
     def __check_context_is_initialized(self):
         if not self.context_initialized:
-            raise UninitializedContextError("SOEM Context is not initialized or has been closed. Call Master.open() first")
+            raise NetworkInterfaceNotOpenError("SOEM Network interface is not initialized or has been closed. Call Master.open() first")
 
         
     def config_init(self, usetable=False):
@@ -605,7 +605,7 @@ class WkcError(Exception):
         self.message = message
         self.wkc = wkc
 
-class UninitializedContextError(Exception):
+class NetworkInterfaceNotOpenError(Exception):
     """Error when a master or slave method is used and the context has not been initialized."""
     pass
 
