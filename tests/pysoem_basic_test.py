@@ -85,3 +85,23 @@ def test_call_config_init_twice(pysoem_env):
     assert len(pysoem_env.get_master().slaves) == len(pysoem_env._expected_slave_layout)
     pysoem_env.config_init()
     assert len(pysoem_env.get_master().slaves) == len(pysoem_env._expected_slave_layout)
+
+
+def test_closed_interface_master(ifname):
+    """Quick check if the open() function context manager works as expected."""
+    with pysoem.open(ifname) as master:
+        if not master.config_init() > 0:
+            pytest.fail()
+
+    with pytest.raises(pysoem.NetworkInterfaceNotOpenError) as exec_info:
+        master.send_processdata()
+
+
+def test_closed_interface_slave(ifname):
+    """Quick check if the open() function context manager works as expected."""
+    with pysoem.open(ifname) as master:
+        if master.config_init() > 0:
+            slaves = master.slaves
+
+    with pytest.raises(pysoem.NetworkInterfaceNotOpenError) as exec_info:
+        slaves[0].sdo_read(0x1018, 1)
