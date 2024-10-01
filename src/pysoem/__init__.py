@@ -12,6 +12,7 @@ from pysoem.pysoem import (
     ConfigMapError,
     EepromError,
     WkcError,
+    NetworkInterfaceNotOpenError,
     SiiOffset,
 )
 
