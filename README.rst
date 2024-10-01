@@ -75,6 +75,10 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.1.9
+^^^^^^^
+* Adds protection against closed network interface connection.
+
 v1.1.8
 ^^^^^^^
 * Fixes null pointer issues when reading not initialized properties ``config_func`` and ``setup_func``.
