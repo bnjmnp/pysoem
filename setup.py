@@ -46,13 +46,15 @@ soem_sources.extend([os.path.join('.', 'soem', 'osal', os_name, 'osal.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatfoe.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatmain.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatprint.c'),
-                     os.path.join('.', 'soem', 'soem', 'ethercatsoe.c')])
+                     os.path.join('.', 'soem', 'soem', 'ethercatsoe.c'),
+                     os.path.join('.', 'src', 'soem', 'soem_config.c')])
 
 soem_inc_dirs.extend([os.path.join('.', 'soem', 'oshw', os_name),
                       os.path.join('.', 'soem', 'osal', os_name),
                       os.path.join('.', 'soem', 'oshw'),
                       os.path.join('.', 'soem', 'osal'),
-                      os.path.join('.', 'soem', 'soem')])
+                      os.path.join('.', 'soem', 'soem'),
+                      os.path.join('.', 'src', 'soem')])
 
 
 def readme():

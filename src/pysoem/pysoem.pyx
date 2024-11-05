@@ -53,6 +53,64 @@ ECT_COEDET_PDOCONFIG = 0x08
 ECT_COEDET_UPLOAD    = 0x10
 ECT_COEDET_SDOCA     = 0x20
 
+cdef class _Timeouts:
+
+    cdef cpysoem.Ttimeouts* _t
+
+    def __cinit__(self):
+        self._t = &cpysoem.soem_timeouts
+
+    @property
+    def ret(self) -> int:
+        return self._t.ret
+
+    @ret.setter
+    def ret(self, value: int):
+        self._t.ret = value
+
+    @property
+    def safe(self) -> int:
+        return self._t.safe
+
+    @safe.setter
+    def safe(self, value: int):
+        self._t.safe = value
+
+    @property
+    def eeprom(self) -> int:
+        return self._t.eeprom
+
+    @eeprom.setter
+    def eeprom(self, value: int):
+        self._t.eeprom = value
+
+    @property
+    def tx_mailbox(self) -> int:
+        return self._t.tx_mailbox
+
+    @tx_mailbox.setter
+    def tx_mailbox(self, value: int):
+        self._t.tx_mailbox = value
+
+    @property
+    def rx_mailbox(self) -> int:
+        return self._t.rx_mailbox
+
+    @rx_mailbox.setter
+    def rx_mailbox(self, value: int):
+        self._t.rx_mailbox = value
+
+    @property
+    def state(self) -> int:
+        return self._t.state
+
+    @state.setter
+    def state(self, value: int):
+        self._t.state = value
+
+TIMEOUTS = _Timeouts()
+
+
 
 cpdef enum ec_datatype:
     ECT_BOOLEAN         = 0x0001,

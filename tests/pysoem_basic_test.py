@@ -105,3 +105,29 @@ def test_closed_interface_slave(ifname):
 
     with pytest.raises(pysoem.NetworkInterfaceNotOpenError) as exec_info:
         slaves[0].sdo_read(0x1018, 1)
+
+
+def test_tune_timeouts():
+    assert pysoem.TIMEOUTS.ret == 2_000
+    pysoem.TIMEOUTS.ret = 5_000
+    assert pysoem.TIMEOUTS.ret == 5_000
+
+    assert pysoem.TIMEOUTS.safe == 20_000
+    pysoem.TIMEOUTS.safe = 70_000
+    assert pysoem.TIMEOUTS.safe == 70_000
+
+    assert pysoem.TIMEOUTS.eeprom == 20_000
+    pysoem.TIMEOUTS.eeprom = 30_000
+    assert pysoem.TIMEOUTS.eeprom == 30_000
+
+    assert pysoem.TIMEOUTS.tx_mailbox == 20_000
+    pysoem.TIMEOUTS.tx_mailbox = 90_000
+    assert pysoem.TIMEOUTS.tx_mailbox == 90_000
+
+    assert pysoem.TIMEOUTS.rx_mailbox == 700_000
+    pysoem.TIMEOUTS.rx_mailbox = 900_000
+    assert pysoem.TIMEOUTS.rx_mailbox == 900_000
+
+    assert pysoem.TIMEOUTS.state == 2_000_000
+    pysoem.TIMEOUTS.state = 5_000_000
+    assert pysoem.TIMEOUTS.state == 5_000_000
