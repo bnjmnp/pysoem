@@ -86,7 +86,17 @@ cdef extern from "ethercat.h":
         uint8   b1
         uint16  w1
         uint16  w2
-    
+
+    # from soem_config.h
+    ctypedef struct Ttimeouts:
+        int ret
+        int safe
+        int eeprom
+        int tx_mailbox
+        int rx_mailbox
+        int state
+    extern Ttimeouts soem_timeouts;
+
     # from nicdrv.h
         
     ctypedef struct ec_stackT:

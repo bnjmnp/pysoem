@@ -83,3 +83,8 @@ from pysoem.pysoem import (
     CdefSlave,
     CdefCoeObjectEntry,
 )
+
+# Timeouts:
+from pysoem.pysoem import (
+    TIMEOUTS
+)
