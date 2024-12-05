@@ -84,7 +84,7 @@ from pysoem.pysoem import (
     CdefCoeObjectEntry,
 )
 
-# Timeouts:
+# Settings:
 from pysoem.pysoem import (
-    TIMEOUTS
+    settings
 )

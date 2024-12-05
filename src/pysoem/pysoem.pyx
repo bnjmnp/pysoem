@@ -53,7 +53,7 @@ ECT_COEDET_PDOCONFIG = 0x08
 ECT_COEDET_UPLOAD    = 0x10
 ECT_COEDET_SDOCA     = 0x20
 
-cdef class _Timeouts:
+cdef class CdefTimeouts:
 
     cdef cpysoem.Ttimeouts* _t
 
@@ -108,9 +108,14 @@ cdef class _Timeouts:
     def state(self, value: int):
         self._t.state = value
 
-TIMEOUTS = _Timeouts()
+cdef class CdefSettings:
 
+    cdef public CdefTimeouts timeouts
 
+    def __init__(self):
+        self.timeouts = CdefTimeouts()
+
+settings = CdefSettings()
 
 cpdef enum ec_datatype:
     ECT_BOOLEAN         = 0x0001,
