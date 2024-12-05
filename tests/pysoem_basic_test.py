@@ -108,26 +108,26 @@ def test_closed_interface_slave(ifname):
 
 
 def test_tune_timeouts():
-    assert pysoem.TIMEOUTS.ret == 2_000
-    pysoem.TIMEOUTS.ret = 5_000
-    assert pysoem.TIMEOUTS.ret == 5_000
+    assert pysoem.settings.timeouts.ret == 2_000
+    pysoem.settings.timeouts.ret = 5_000
+    assert pysoem.settings.timeouts.ret == 5_000
 
-    assert pysoem.TIMEOUTS.safe == 20_000
-    pysoem.TIMEOUTS.safe = 70_000
-    assert pysoem.TIMEOUTS.safe == 70_000
+    assert pysoem.settings.timeouts.safe == 20_000
+    pysoem.settings.timeouts.safe = 70_000
+    assert pysoem.settings.timeouts.safe == 70_000
 
-    assert pysoem.TIMEOUTS.eeprom == 20_000
-    pysoem.TIMEOUTS.eeprom = 30_000
-    assert pysoem.TIMEOUTS.eeprom == 30_000
+    assert pysoem.settings.timeouts.eeprom == 20_000
+    pysoem.settings.timeouts.eeprom = 30_000
+    assert pysoem.settings.timeouts.eeprom == 30_000
 
-    assert pysoem.TIMEOUTS.tx_mailbox == 20_000
-    pysoem.TIMEOUTS.tx_mailbox = 90_000
-    assert pysoem.TIMEOUTS.tx_mailbox == 90_000
+    assert pysoem.settings.timeouts.tx_mailbox == 20_000
+    pysoem.settings.timeouts.tx_mailbox = 90_000
+    assert pysoem.settings.timeouts.tx_mailbox == 90_000
 
-    assert pysoem.TIMEOUTS.rx_mailbox == 700_000
-    pysoem.TIMEOUTS.rx_mailbox = 900_000
-    assert pysoem.TIMEOUTS.rx_mailbox == 900_000
+    assert pysoem.settings.timeouts.rx_mailbox == 700_000
+    pysoem.settings.timeouts.rx_mailbox = 900_000
+    assert pysoem.settings.timeouts.rx_mailbox == 900_000
 
-    assert pysoem.TIMEOUTS.state == 2_000_000
-    pysoem.TIMEOUTS.state = 5_000_000
-    assert pysoem.TIMEOUTS.state == 5_000_000
+    assert pysoem.settings.timeouts.state == 2_000_000
+    pysoem.settings.timeouts.state = 5_000_000
+    assert pysoem.settings.timeouts.state == 5_000_000
