@@ -1,7 +1,7 @@
 
 name: Build PySOEM sdist and wheels and upload them to PyPI
 
-# This is triggerd upon creating a release on GitHub.
+# This is triggered upon creating a release on GitHub.
 on:
   release:
     types: [published]
@@ -46,6 +46,11 @@ jobs:
   upload_pypi:
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pysoem
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
 
     steps:
       - uses: actions/download-artifact@v4
@@ -56,6 +61,3 @@ jobs:
           merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_PYSOEM_ACCESS_TOKEN }}
