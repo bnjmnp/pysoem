@@ -26,7 +26,7 @@ if sys.platform.startswith('win'):
 elif sys.platform.startswith('linux'):
     soem_macros = []
     soem_lib_dirs = []
-    soem_libs = ['pthread', 'rt'] 
+    soem_libs = ['pthread', 'rt']
     os_name = 'linux'
 elif sys.platform.startswith('darwin'):
     soem_macros = []
@@ -35,6 +35,7 @@ elif sys.platform.startswith('darwin'):
     os_name = 'macosx'
 
 soem_macros.append(('EC_VER2', ''))
+soem_macros.append(('USE_SOEM_CONFIG_H', ''))
 
 soem_sources.extend([os.path.join('.', 'soem', 'osal', os_name, 'osal.c'),
                      os.path.join('.', 'soem', 'oshw', os_name, 'oshw.c'),
@@ -62,7 +63,7 @@ def readme():
     with open('README.rst') as f:
         return f.read()
 
-        
+
 here = os.path.abspath(os.path.dirname(__file__))
 
 
