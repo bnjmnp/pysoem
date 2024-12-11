@@ -4,4 +4,6 @@ include examples/*.py
 include src/pysoem/cpysoem.pxd
 include src/pysoem/pysoem.pyx
 include src/pysoem/pysoem.c
+include src/soem/soem_config.c
+include src/soem/soem_config.h
 recursive-include soem *.h *.c
