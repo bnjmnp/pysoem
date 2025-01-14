@@ -75,6 +75,10 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.1.10
+^^^^^^^
+* Adds ``pysoem.settings.timeouts`` to configure low-level timeouts at run-time.
+
 v1.1.9
 ^^^^^^^
 * Adds protection against closed network interface connection.
