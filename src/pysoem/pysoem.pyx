@@ -28,6 +28,7 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 from libc.string cimport memcpy, memset
+from socket import ntohs, ntohl
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,11 @@ def al_status_code_to_string(code):
     return cpysoem.ec_ALstatuscode2string(code).decode('utf8');
 
 
+ctypedef struct _contextt_and_master:
+    # Sneaky struct to allow getting a reference to the CdefMaster object from an ecx_contextt pointer
+    cpysoem.ecx_contextt ecx_contextt
+    void *master
+
 class Master(CdefMaster):
     """Representing a logical EtherCAT master device.
 
@@ -237,7 +243,8 @@ cdef class CdefMaster:
     cdef cpysoem.ecx_portt        _ecx_port
     cdef cpysoem.ecx_redportt     _ecx_redport
 
-    cdef cpysoem.ecx_contextt _ecx_contextt
+    cdef _contextt_and_master _ecx__contextt_and_master
+    cdef cpysoem.ecx_contextt *_ecx_contextt
     cdef char io_map[EC_IOMAPSIZE]
     cdef CdefMasterSettings _settings
     cdef public int sdo_read_timeout
@@ -250,6 +257,9 @@ cdef class CdefMaster:
     manual_state_change = property(_get_manual_state_change, _set_manual_state_change)
 
     def __cinit__(self):
+        self._ecx__contextt_and_master.master = <void*>self
+        self._ecx_contextt = &self._ecx__contextt_and_master.ecx_contextt
+
         self._ecx_contextt.port = &self._ecx_port
         self._ecx_contextt.slavelist = &self._ec_slave[0]
         self._ecx_contextt.slavecount = &self._ec_slavecount
@@ -270,6 +280,7 @@ cdef class CdefMaster:
         self._ecx_contextt.eepSM = &self._ec_SM
         self._ecx_contextt.eepFMMU = &self._ec_FMMU
         self._ecx_contextt.FOEhook = NULL
+        self._ecx_contextt.EOEhook = NULL
         self._ecx_contextt.manualstatechange = 0
         
         self.slaves = None
@@ -299,9 +310,9 @@ cdef class CdefMaster:
                 you have no permission to open the interface
         """
         if ifname_red is None:
-            ret_val = cpysoem.ecx_init(&self._ecx_contextt, ifname.encode('utf8'))
+            ret_val = cpysoem.ecx_init(self._ecx_contextt, ifname.encode('utf8'))
         else:
-            ret_val = cpysoem.ecx_init_redundant(&self._ecx_contextt, &self._ecx_redport, ifname.encode('utf8'), ifname_red.encode('utf8'))
+            ret_val = cpysoem.ecx_init_redundant(self._ecx_contextt, &self._ecx_redport, ifname.encode('utf8'), ifname_red.encode('utf8'))
         if ret_val == 0:
             raise ConnectionError('could not open interface {}'.format(ifname))
 
@@ -323,7 +334,7 @@ cdef class CdefMaster:
         """
         self.check_context_is_initialized()
         self.slaves = []
-        ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
+        ret_val = cpysoem.ecx_config_init(self._ecx_contextt, usetable)
         if ret_val > 0:
           for i in range(self._ec_slavecount):
               self.slaves.append(self._get_slave(i))
@@ -338,7 +349,7 @@ cdef class CdefMaster:
         self.check_context_is_initialized()
         cdef _CallbackData cd
         # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
-        ret_val = cpysoem.ecx_config_map_group(&self._ecx_contextt, &self.io_map, 0)
+        ret_val = cpysoem.ecx_config_map_group(self._ecx_contextt, &self.io_map, 0)
         # check for exceptions raised in the config functions
         for slave in self.slaves:
             cd = slave._cd
@@ -360,7 +371,7 @@ cdef class CdefMaster:
         self.check_context_is_initialized()
         cdef _CallbackData cd
         # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
-        ret_val = cpysoem.ecx_config_overlap_map_group(&self._ecx_contextt, &self.io_map, 0)
+        ret_val = cpysoem.ecx_config_overlap_map_group(self._ecx_contextt, &self.io_map, 0)
         # check for exceptions raised in the config functions
         for slave in self.slaves:
             cd = slave._cd
@@ -378,7 +389,7 @@ cdef class CdefMaster:
         # collect SDO or mailbox errors that occurred during PDO configuration read in ecx_config_map_group
         error_list = []
         cdef cpysoem.ec_errort err
-        while cpysoem.ecx_poperror(&self._ecx_contextt, &err):
+        while cpysoem.ecx_poperror(self._ecx_contextt, &err):
             if err.Etype == cpysoem.EC_ERR_TYPE_SDO_ERROR:
                 error_list.append(SdoError(err.Slave,
                                            err.Index,
@@ -402,7 +413,7 @@ cdef class CdefMaster:
             bool: if slaves are found with DC
         """
         self.check_context_is_initialized()
-        return cpysoem.ecx_configdc(&self._ecx_contextt)
+        return cpysoem.ecx_configdc(self._ecx_contextt)
         
     def close(self):
         """Close the network interface.
@@ -410,7 +421,7 @@ cdef class CdefMaster:
         """
         # ecx_close returns nothing
         self.context_initialized = False
-        cpysoem.ecx_close(&self._ecx_contextt)
+        cpysoem.ecx_close(self._ecx_contextt)
 
     def read_state(self):
         """Read all slaves states.
@@ -419,7 +430,7 @@ cdef class CdefMaster:
             int: lowest state found
         """
         self.check_context_is_initialized()
-        return cpysoem.ecx_readstate(&self._ecx_contextt)
+        return cpysoem.ecx_readstate(self._ecx_contextt)
         
     def write_state(self):
         """Write all slaves state.
@@ -430,7 +441,7 @@ cdef class CdefMaster:
             int: Working counter or EC_NOFRAME
         """
         self.check_context_is_initialized()
-        return cpysoem.ecx_writestate(&self._ecx_contextt, 0)
+        return cpysoem.ecx_writestate(self._ecx_contextt, 0)
         
     def state_check(self, int expected_state, timeout=50000):
         """Check actual slave state.
@@ -446,7 +457,7 @@ cdef class CdefMaster:
             int: Requested state, or found state after timeout
         """
         self.check_context_is_initialized()
-        return cpysoem.ecx_statecheck(&self._ecx_contextt, 0, expected_state, timeout)
+        return cpysoem.ecx_statecheck(self._ecx_contextt, 0, expected_state, timeout)
         
     def send_processdata(self):
         """Transmit processdata to slaves.
@@ -463,7 +474,7 @@ cdef class CdefMaster:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
         self.check_context_is_initialized()
-        return cpysoem.ecx_send_processdata(&self._ecx_contextt)
+        return cpysoem.ecx_send_processdata(self._ecx_contextt)
 
     def send_overlap_processdata(self):
         """Transmit overlap processdata to slaves.
@@ -472,7 +483,7 @@ cdef class CdefMaster:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
         self.check_context_is_initialized()
-        return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
+        return cpysoem.ecx_send_overlap_processdata(self._ecx_contextt)
     
     def receive_processdata(self, timeout=2000):
         """Receive processdata from slaves.
@@ -487,7 +498,7 @@ cdef class CdefMaster:
             int: Working Counter
         """
         self.check_context_is_initialized()
-        return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
+        return cpysoem.ecx_receive_processdata(self._ecx_contextt, timeout)
     
     def _get_slave(self, int pos):
         if pos < 0:
@@ -496,7 +507,7 @@ cdef class CdefMaster:
             raise IndexError('requested slave device is not available')
         ethercat_slave = CdefSlave(pos+1)
         ethercat_slave._master = self
-        ethercat_slave._ecx_contextt = &self._ecx_contextt
+        ethercat_slave._ecx_contextt = self._ecx_contextt
         ethercat_slave._ec_slave = &self._ec_slave[pos+1] # +1 as _ec_slave[0] is reserved
         ethercat_slave._the_masters_settings = &self._settings
         return ethercat_slave
@@ -538,6 +549,18 @@ cdef class CdefMaster:
     def _get_manual_state_change(self):        
         return self._ecx_contextt.manualstatechange
 
+    def set_eoe_callback(self, callback):
+        """Sets the callback for when EOE data is recieved.
+
+        Args:
+            callback: Callable with arguments (bytes eoe_packet, int slave)
+        """
+        if callback is None:
+            cpysoem.ecx_EOEdefinehook(self._ecx_contextt, NULL)
+            self._eoe_callback = None
+        else:
+            cpysoem.ecx_EOEdefinehook(self._ecx_contextt, &_eoe_hook)
+            self._eoe_callback = callback
         
         
 class SdoError(Exception):
@@ -672,6 +695,9 @@ class NetworkInterfaceNotOpenError(Exception):
     """Error when a master or slave method is used and the context has not been initialized."""
     pass
 
+class EoeInvalidRxDataError(Exception):
+    """Error when recieved EOE data is invalid"""
+    pass
 
 cdef class _CallbackData:
     cdef:
@@ -698,6 +724,14 @@ cdef enum:
     EC_TIMEOUTRXM = 700000
     STATIC_SDO_READ_BUFFER_SIZE = 256
 
+ctypedef struct _eoe_rx_data:
+    uint8_t _rxfragmentno
+    uint16_t _rxframesize
+    uint16_t _rxframeoffset
+    uint16_t _rxframeno
+    uint8_t _rxbuf[1500] # TODO: Make MTU configurable?
+    int _size_of_rx
+
 
 cdef class CdefSlave:
     """Represents a slave device
@@ -714,6 +748,7 @@ cdef class CdefSlave:
     cdef public _CallbackData _cd
     cdef cpysoem.ec_ODlistt _ex_odlist
     cdef public _emcy_callbacks
+    cdef _eoe_rx_data _eoe_rx_info
 
     name = property(_get_name)
     man = property(_get_eep_man)
@@ -1000,6 +1035,189 @@ cdef class CdefSlave:
         # return data
         try:
             return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
+        finally:
+            PyMem_Free(pbuf)
+
+    def eoe_set_ip(self, ip=None, netmask=None, gateway=None, mac=None, dns_ip=None, dns_name=None, port=0, timeout=700000):
+        """ Set a slave's IP address
+
+        Args:
+            str ip: IP address the slave should use, or None to not set.
+            str netmask: Netmask the slave should use, or None to not set.
+            str gateway: Gateway the slave should use, or None to not set.
+            str mac: MAC address to assign, or None to not set.
+            str dns_ip: DNS server the slave should use, or None to not set.
+            str dns_name: DNS name the slave should use, or None to not set.
+            int port: port number on slave if applicable. Defaults to 0.
+            int timeout: Timeout in us. Defaults to 700ms.
+
+        Returns:
+            int: Workcounter
+        """
+        import ipaddress
+
+        cdef cpysoem.eoe_param_t ipsettings
+        memset(&ipsettings, 0, sizeof(ipsettings))
+
+        if ip is not None:
+            ipsettings.ip_set = 1
+            ipAddr = ipaddress.ip_address(ip)
+            ipsettings.ip.addr = ntohl(ipAddr._ip)
+
+        if netmask is not None:
+            ipsettings.subnet_set = 1
+            subnetAddr = ipaddress.ip_address(netmask)
+            ipsettings.subnet.addr = ntohl(subnetAddr._ip)
+
+        if gateway is not None:
+            ipsettings.default_gateway_set = 1
+            gatewayAddr = ipaddress.ip_address(gateway)
+            ipsettings.default_gateway.addr = ntohl(gatewayAddr._ip)
+
+        if dns_ip is not None:
+            ipsettings.dns_ip_set = 1
+            dnsAddr = ipaddress.ip_address(dns_ip)
+            ipsettings.dns_ip.addr = ntohl(dnsAddr._ip)
+
+        if mac is not None:
+            ipsettings.mac_set = 1
+
+            import binascii
+            try:
+                if type(mac) == str:
+                    ipsettings.mac.addr = binascii.unhexlify(bytes(mac, "utf-8").replace(b':', b''))
+                else:
+                    ipsettings.mac.addr = binascii.unhexlify(mac.replace(b':', b''))
+            except Exception as e:
+                raise Exception('MAC address must be of the form \'xx:xx:xx:xx:xx:xx\'') from e
+
+        if dns_name is not None:
+            ipsettings.dns_name_set = 1
+            ipsettings.dns_name = <unsigned char*>dns_name
+
+        return cpysoem.ecx_EOEsetIp(self._ecx_contextt, self._pos, port, &ipsettings, timeout)
+
+    def eoe_get_ip(self, port=0, timeout=700000):
+        """Gets EOE IP settings from a slave
+
+        Args:
+            int port: port number on slave if applicable. Defaults to 0.
+            int timeout: Timeout in us. Defaults to 700ms.
+
+        Returns:
+            List of settings: [mac, ip, subnet_mask, gateway_ip, dns_ip, dns_name]. Value is None if setting is not set
+        """
+        cdef cpysoem.eoe_param_t ipsettings
+        cdef cpysoem.ec_errort err
+
+        self._master.check_context_is_initialized()
+
+        memset(&ipsettings, 0, sizeof(ipsettings))
+
+        cdef int result = cpysoem.ecx_EOEgetIp(self._ecx_contextt, self._pos, port, &ipsettings, timeout)
+
+        if result == -cpysoem.EC_ERR_TYPE_MBX_ERROR:
+            raise MailboxError(self._pos, 0, "Mainbox error reading eoe IP settings")
+        elif result == -cpysoem.EC_ERR_TYPE_PACKET_ERROR:
+            raise PacketError(self._pos, 1)
+
+        returnval = [None, None, None, None, None, None]
+
+        if ipsettings.mac_set:
+            returnval[0] = "%02x:%02x:%02x:%02x:%02x:%02x"%(
+                    ipsettings.mac.addr[0],
+                    ipsettings.mac.addr[1],
+                    ipsettings.mac.addr[2],
+                    ipsettings.mac.addr[3],
+                    ipsettings.mac.addr[4],
+                    ipsettings.mac.addr[5])
+        if ipsettings.ip_set:
+            returnval[1] = "%d.%d.%d.%d"%(
+                    (ntohl(ipsettings.ip.addr) >> 24) & 0xFF,
+                    (ntohl(ipsettings.ip.addr) >> 16) & 0xFF,
+                    (ntohl(ipsettings.ip.addr) >>  8) & 0xFF,
+                    (ntohl(ipsettings.ip.addr) >>  0) & 0xFF)
+        if ipsettings.subnet_set:
+            returnval[2] = "%d.%d.%d.%d"%(
+                    (ntohl(ipsettings.subnet.addr) >> 24) & 0xFF,
+                    (ntohl(ipsettings.subnet.addr) >> 16) & 0xFF,
+                    (ntohl(ipsettings.subnet.addr) >>  8) & 0xFF,
+                    (ntohl(ipsettings.subnet.addr) >>  0) & 0xFF)
+        if ipsettings.default_gateway_set:
+            returnval[3] = "%d.%d.%d.%d"%(
+                    (ntohl(ipsettings.default_gateway.addr) >> 24) & 0xFF,
+                    (ntohl(ipsettings.default_gateway.addr) >> 16) & 0xFF,
+                    (ntohl(ipsettings.default_gateway.addr) >>  8) & 0xFF,
+                    (ntohl(ipsettings.default_gateway.addr) >>  0) & 0xFF)
+        if ipsettings.dns_ip_set:
+            returnval[4] = "%d.%d.%d.%d"%(
+                    (ntohl(ipsettings.dns_ip_set.addr) >> 24) & 0xFF,
+                    (ntohl(ipsettings.dns_ip_set.addr) >> 16) & 0xFF,
+                    (ntohl(ipsettings.dns_ip_set.addr) >>  8) & 0xFF,
+                    (ntohl(ipsettings.dns_ip_set.addr) >>  0) & 0xFF)
+        if ipsettings.dns_name_set:
+            returnval[5] = str(ipsettings.dns_name, "utf-8").rstrip('\x00')
+
+        return returnval
+
+    def eoe_send_data(self, bytes data, int port=0, timeout_us=700000):
+        """ Send EOE packet to a slave
+
+        Args:
+            str data: Raw packet data
+            int port: port number on slave if applicable. Defaults to 0.
+            int timeout: Timeout in us. Defaults to 700ms.
+
+        Returns:
+            int: Workcounter
+        """
+        self._master.check_context_is_initialized()
+
+        cdef int result = cpysoem.ecx_EOEsend(self._ecx_contextt, self._pos, port, <int>len(data), <unsigned char*>data, timeout_us)
+        return result
+
+    def eoe_recv_data(self, int port=0, timeout_us=700000, mtu=1500):
+        """ Recieve EOE packet from a slave. Only use if eoe hook has not been set.
+
+        Args:
+            int port: port number on slave if applicable. Defaults to 0.
+            int timeout: Timeout in us. Defaults to 700ms.
+            int mtu: Max packet size. Defaults to 1500.
+
+        Raises:
+            EoeInvalidRxDataError: if invalid EOE data is recieved
+            PacketError: if the mailbox contains data other than EOE data
+            Emergency: if an emergency message was received
+
+        Returns:
+            bytes: received data, or None on timeout or if no data is available
+        """
+        self._master.check_context_is_initialized()
+        assert self._master._ecx_contextt.EOEhook == NULL
+
+        cdef unsigned char* pbuf
+        cdef int size_inout
+        pbuf = <unsigned char*>PyMem_Malloc((mtu)*sizeof(unsigned char))
+        size_inout = mtu
+
+        cdef int result = cpysoem.ecx_EOErecv(self._ecx_contextt, self._pos, port, &size_inout, pbuf, timeout_us)
+
+        # error handling
+        cdef cpysoem.ec_errort err
+        if cpysoem.ecx_poperror(self._ecx_contextt, &err):
+            PyMem_Free(pbuf)
+            assert err.Slave == self._pos
+            self._raise_exception(&err)
+
+        try:
+            if result > 0:
+                return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
+            elif result == -cpysoem.EC_ERR_TYPE_EOE_INVALID_RX_DATA:
+                raise EoeInvalidRxDataError()
+            elif result == -cpysoem.EC_ERR_TYPE_PACKET_ERROR:
+                raise PacketError(slave_pos=self._pos, error_code=1) # Always an unexpected packet error, so error_code = 1
+            else:
+                return None
         finally:
             PyMem_Free(pbuf)
 
@@ -1398,3 +1616,34 @@ cdef int _xPO2SOconfigEx(cpysoem.uint16 slave, void* user) noexcept:
     except:
         cd.exc_raised = True
         cd.exc_info = sys.exc_info()
+
+cdef int _eoe_hook(cpysoem.ecx_contextt* context, cpysoem.uint16 slave, void* eoembx) noexcept:
+    cdef int wkc
+    # context is actually a _contextt_and_master pointer, cast it and get CdefMaster pointer
+    cdef CdefMaster self = <CdefMaster>(<_contextt_and_master*>context).master
+    slaveInx = <int>(slave - 1)
+    cdef _eoe_rx_data *rxInfo = &(<CdefSlave>self.slaves[slaveInx])._eoe_rx_info
+
+    # Pass received Mbx data to EoE recevive fragment function that
+    # that will start/continue fill an Ethernet frame buffer
+    rxInfo._size_of_rx = <int>sizeof(rxInfo._rxbuf)
+    wkc = cpysoem.ecx_EOEreadfragment(<cpysoem.ec_mbxbuft *>eoembx, # ec_mbxbuft *
+        &rxInfo._rxfragmentno, # uint8 *
+        &rxInfo._rxframesize, # uint16 *
+        &rxInfo._rxframeoffset, # uint16 *
+        &rxInfo._rxframeno, # uint16 *
+        &rxInfo._size_of_rx, # int *
+        rxInfo._rxbuf) # void *
+
+    # wkc == 1 would mean a frame is complete , last fragment flag have been set and all
+    # other checks must have past
+    if (wkc > 0):
+        try:
+            self._eoe_callback(PyBytes_FromStringAndSize(<char*>rxInfo._rxbuf, rxInfo._size_of_rx), slave)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+
+    # No point in returning as unhandled
+    return 1
+

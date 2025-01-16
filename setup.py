@@ -48,6 +48,7 @@ soem_sources.extend([os.path.join('.', 'soem', 'osal', os_name, 'osal.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatmain.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatprint.c'),
                      os.path.join('.', 'soem', 'soem', 'ethercatsoe.c'),
+                     os.path.join('.', 'soem', 'soem', 'ethercateoe.c'),
                      os.path.join('.', 'src', 'soem', 'soem_config.c')])
 
 soem_inc_dirs.extend([os.path.join('.', 'soem', 'oshw', os_name),

@@ -60,6 +60,7 @@ cdef extern from "ethercat.h":
         EC_ERR_TYPE_SOE_ERROR         = 8
         EC_ERR_TYPE_MBX_ERROR         = 9
         EC_ERR_TYPE_FOE_FILE_NOTFOUND = 10
+        EC_ERR_TYPE_EOE_INVALID_RX_DATA = 11
         
     ctypedef enum ec_state:
         EC_STATE_NONE           = 0x00
@@ -312,6 +313,32 @@ cdef extern from "ethercat.h":
         uint16 *BitLength #[EC_MAXOELIST]
         uint16 *ObjAccess #[EC_MAXOELIST]
         char   **Name #[EC_MAXOELIST][EC_MAXNAME+1]
+
+    # from ethercateoe.h
+    ctypedef struct eoe_ip4_addr_t:
+        uint32 addr
+
+    ctypedef struct eoe_ethaddr_t:
+        uint8 addr[6]
+
+    ctypedef struct eoe_param_t:
+        uint8 mac_set # : 1
+        uint8 ip_set # : 1
+        uint8 subnet_set # : 1
+        uint8 default_gateway_set # : 1
+        uint8 dns_ip_set # : 1
+        uint8 dns_name_set # : 1
+        eoe_ethaddr_t mac
+        eoe_ip4_addr_t ip
+        eoe_ip4_addr_t subnet
+        eoe_ip4_addr_t default_gateway
+        eoe_ip4_addr_t dns_ip
+        char dns_name[32]
+
+    ctypedef packed struct ec_etherheadert:
+        eoe_ethaddr_t da
+        eoe_ethaddr_t sa
+        uint16 etype
     
     int ecx_init(ecx_contextt* context, char* ifname)
     int ecx_init_redundant(ecx_contextt *context, ecx_redportt *redport, const char *ifname, char *if2name)
@@ -356,3 +383,10 @@ cdef extern from "ethercat.h":
 
     int ecx_FPWR(ecx_portt *port, uint16 ADP, uint16 ADO, uint16 length, void *data, int timeout)
     int ecx_FPRD(ecx_portt *port, uint16 ADP, uint16 ADO, uint16 length, void *data, int timeout)
+
+    int ecx_EOEsend(ecx_contextt *context, uint16 slave, uint8 port, int psize, void *p, int timeout)
+    int ecx_EOErecv(ecx_contextt *context, uint16 slave, uint8 port, int *psize, void *p, int timeout)
+    int ecx_EOEreadfragment(ec_mbxbuft * MbxIn, uint8 * rxfragmentno, uint16 * rxframesize,  uint16 * rxframeoffset,  uint16 * rxframeno, int * psize,  void *p)
+    int ecx_EOEgetIp(ecx_contextt *context, uint16 slave, uint8 port, eoe_param_t * ipparam, int timeout)
+    int ecx_EOEsetIp(ecx_contextt *context, uint16 slave, uint8 port, eoe_param_t * ipparam, int timeout)
+    int ecx_EOEdefinehook(ecx_contextt *context, void *hook)
