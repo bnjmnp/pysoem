@@ -23,7 +23,7 @@ if sys.platform.startswith('win'):
     soem_libs = ['wpcap', 'Packet', 'Ws2_32', 'Winmm']
     soem_inc_dirs.append(os.path.join('.', 'soem', 'oshw', 'win32', 'wpcap', 'Include'))
     os_name = 'win32'
-elif sys.platform.startswith('linux'):
+elif sys.platform.startswith('linux') or sys.platform.startswith('freebsd'):
     soem_macros = []
     soem_lib_dirs = []
     soem_libs = ['pthread', 'rt']
