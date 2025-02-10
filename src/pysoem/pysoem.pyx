@@ -1063,15 +1063,12 @@ cdef class CdefSlave:
         }
         if wd_type not in wd_type_to_reg_map.keys():
             raise AttributeError()
-        wd_div_reg = int.from_bytes(self._fprd(ECT_REG_WD_DIV, 2, fprd_fpwr_timeout_us),
-                                    byteorder='little',
-                                    signed=False)
-        wd_div_ns = 40 * (wd_div_reg + 2)
-        wd_time_reg = int((wd_time_ms*1000000.0) / wd_div_ns)
-        if wd_time_reg > 0xFFFF:
-            wd_time_ms_limit = 0xFFFF * wd_div_ns / 1000000.0
+        wd_time_ms_limit = self.get_max_watchdog_time()
+        if wd_time_ms > wd_time_ms_limit:
             raise AttributeError('wd_time_ms is limited to {} ms'.format(wd_time_ms_limit))
-        actual_wd_time_ms = wd_time_reg * wd_div_ns / 1000000.0
+
+        wd_time_reg = int((wd_time_ms*1000000.0) / wd_div_ns)
+
         self._fpwr(wd_type_to_reg_map[wd_type],
                    wd_time_reg.to_bytes(2, byteorder='little', signed=False),
                    fprd_fpwr_timeout_us)
@@ -1091,16 +1088,31 @@ cdef class CdefSlave:
         }
         if wd_type not in wd_type_to_reg_map.keys():
             raise AttributeError()
+        wd_div_ns = self._get_watchdog_divider_ns()
+        wd_time_reg = int.from_bytes(self._fprd(wd_type_to_reg_map[wd_type], 2, fprd_fpwr_timeout_us),
+                                        byteorder='little',
+                                        signed=False)
+        wd_time_ms = wd_time_reg * wd_div_ns / 1000000.0
+        return wd_time_ms
+
+    def _get_watchdog_divider_ns(self):
+        fprd_fpwr_timeout_us = 4000
         wd_div_reg = int.from_bytes(self._fprd(ECT_REG_WD_DIV, 2, fprd_fpwr_timeout_us),
                                     byteorder='little',
                                     signed=False)
         wd_div_ns = 40 * (wd_div_reg + 2)
-        wd_time_reg = int.from_bytes(self._fprd(wd_type_to_reg_map[wd_type], 2, fprd_fpwr_timeout_us),
-                                    byteorder='little',
-                                    signed=False)
-        wd_time_ms = wd_time_reg * wd_div_ns / 1000000.0
-        return wd_time_ms
+        return wd_div_ns
 
+    def get_max_watchdog_time(self):
+        """Get the maximum watchdog timeout.
+        
+        Returns:
+            float: The maximum watchdog timeout in ms.
+        
+        """
+        wd_div_ns = self._get_watchdog_divider_ns()
+        wd_time_ms_limit = 0xFFFF * wd_div_ns / 1000000.0
+        return wd_time_ms_limit
 
     def add_emergency_callback(self, callback):
         """Get notified on EMCY messages from this slave.
