@@ -1269,6 +1269,32 @@ cdef class CdefSlave:
                    wd_time_reg.to_bytes(2, byteorder='little', signed=False),
                    fprd_fpwr_timeout_us)
 
+    def get_watchdog(self, wd_type):
+        """Get the watchdog time of the PDI or Process Data watchdog.
+
+        :param str wd_type: Either 'pdi', or 'processdata' to specify the watchdog time to be read.
+
+        Returns:
+            float: The watchdog time in ms.
+        """
+        fprd_fpwr_timeout_us = 4000
+        wd_type_to_reg_map = {
+            'pdi': ECT_REG_WD_TIME_PDI,
+            'processdata': ECT_REG_WD_TIME_PROCESSDATA,
+        }
+        if wd_type not in wd_type_to_reg_map.keys():
+            raise AttributeError()
+        wd_div_reg = int.from_bytes(self._fprd(ECT_REG_WD_DIV, 2, fprd_fpwr_timeout_us),
+                                    byteorder='little',
+                                    signed=False)
+        wd_div_ns = 40 * (wd_div_reg + 2)
+        wd_time_reg = int.from_bytes(self._fprd(wd_type_to_reg_map[wd_type], 2, fprd_fpwr_timeout_us),
+                                    byteorder='little',
+                                    signed=False)
+        wd_time_ms = wd_time_reg * wd_div_ns / 1000000.0
+        return wd_time_ms
+
+
     def add_emergency_callback(self, callback):
         """Get notified on EMCY messages from this slave.
 
