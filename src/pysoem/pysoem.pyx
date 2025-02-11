@@ -1260,6 +1260,7 @@ cdef class CdefSlave:
         if wd_time_ms > wd_time_ms_limit:
             raise AttributeError('wd_time_ms is limited to {} ms'.format(wd_time_ms_limit))
 
+        wd_div_ns = self._get_watchdog_divider_ns()
         wd_time_reg = int((wd_time_ms*1000000.0) / wd_div_ns)
 
         self._fpwr(wd_type_to_reg_map[wd_type],
