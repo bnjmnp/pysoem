@@ -710,7 +710,7 @@ cdef class CdefSlave:
     cdef cpysoem.ecx_contextt* _ecx_contextt
     cdef cpysoem.ec_slavet* _ec_slave
     cdef CdefMasterSettings* _the_masters_settings
-    cdef _pos # keep in mind that first slave has pos 1  
+    cdef int _pos # keep in mind that first slave has pos 1  
     cdef public _CallbackData _cd
     cdef cpysoem.ec_ODlistt _ex_odlist
     cdef public _emcy_callbacks
@@ -942,7 +942,26 @@ cdef class CdefSlave:
         if not result > 0:
             raise EepromError('EEPROM write error')
 
-    def foe_write(self, filename, password, bytes data, timeout = 200000):
+    cdef int __foe_write_nogil(self, str filename, uint32_t password, int size, bytes data, int timeout):
+        """Write given data to device using FoE without GIL.
+
+        Args:
+            filename (string): name of the target file.
+            password (uint32_t): password for the target file, accepted range: 0 to 2^32 - 1.
+            data (bytes): data.
+            timeout (int): Timeout value in us.
+        """
+        cdef uint32_t result
+        cdef bytes encoded_filename = filename.encode('utf-8')
+        cdef char* c_filename = encoded_filename
+        cdef unsigned char* c_data = <unsigned char*> data
+        
+        with nogil:
+            result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, c_filename, password, size, c_data, timeout)
+        
+        return result
+
+    def foe_write(self, filename, password, bytes data, timeout = 200000, release_gil=False):
         """ Write given data to device using FoE
 
         Args:
@@ -950,6 +969,7 @@ cdef class CdefSlave:
             password (int): password for the target file, accepted range: 0 to 2^32 - 1
             data (bytes): data
             timeout (int): Timeout value in us
+            release_gil (bool): True to write releasing the GIL. Defaults to False.
         """
         # error handling
         if self._ecx_contextt == NULL:
@@ -957,8 +977,15 @@ cdef class CdefSlave:
 
         self._master.check_context_is_initialized()
 
+        cdef int result
         cdef int size = len(data)
-        cdef int result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
+
+        print(f"RELEASE GIL: {release_gil}")
+        
+        if release_gil:
+            result = self.__foe_write_nogil(filename, password, size, data, timeout)
+        else:
+            result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
         
         # error handling
         cdef cpysoem.ec_errort err
