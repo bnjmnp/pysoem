@@ -28,6 +28,7 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 from libc.string cimport memcpy, memset
+from cpython.ref cimport Py_INCREF, Py_DECREF
 
 logger = logging.getLogger(__name__)
 
@@ -955,9 +956,11 @@ cdef class CdefSlave:
         cdef bytes encoded_filename = filename.encode('utf-8')
         cdef char* c_filename = encoded_filename
         cdef unsigned char* c_data = <unsigned char*> data
-        
+
+        Py_INCREF(self)
         with nogil:
             result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, c_filename, password, size, c_data, timeout)
+        Py_DECREF(self)
         
         return result
 
