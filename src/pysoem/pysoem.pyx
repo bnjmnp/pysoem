@@ -979,8 +979,6 @@ cdef class CdefSlave:
 
         cdef int result
         cdef int size = len(data)
-
-        print(f"RELEASE GIL: {release_gil}")
         
         if release_gil:
             result = self.__foe_write_nogil(filename, password, size, data, timeout)
