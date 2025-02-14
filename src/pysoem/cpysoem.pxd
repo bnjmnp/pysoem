@@ -329,7 +329,6 @@ cdef extern from "ethercat.h":
     int ecx_writestate(ecx_contextt *context, uint16 slave)
     uint16 ecx_statecheck(ecx_contextt *context, uint16 slave, uint16 reqstate, int timeout)
     
-    int ecx_send_processdata(ecx_contextt *context)
     int ecx_send_overlap_processdata(ecx_contextt *context)
     int ecx_receive_processdata(ecx_contextt *context, int timeout)
     
@@ -357,4 +356,5 @@ cdef extern from "ethercat.h":
     int ecx_FPRD(ecx_portt *port, uint16 ADP, uint16 ADO, uint16 length, void *data, int timeout)
 
 cdef extern from "ethercat.h" nogil:
+    int ecx_send_processdata(ecx_contextt *context)
     int ecx_FOEwrite(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int psize, void *p, int timeout)

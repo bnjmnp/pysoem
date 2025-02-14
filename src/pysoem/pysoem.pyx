@@ -448,8 +448,18 @@ cdef class CdefMaster:
         """
         self.check_context_is_initialized()
         return cpysoem.ecx_statecheck(&self._ecx_contextt, 0, expected_state, timeout)
+
+    cdef int __send_processdata_nogil(self):
+        """Transmit processdata to slaves without GIL."""
+
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_send_processdata(&self._ecx_contextt)
+        Py_DECREF(self)
         
-    def send_processdata(self):
+        return result
+        
+    def send_processdata(self, release_gil=False):
         """Transmit processdata to slaves.
         
         Uses LRW, or LRD/LWR if LRW is not allowed (blockLRW).
@@ -459,11 +469,16 @@ cdef class CdefMaster:
         In contrast to the base LRW function this function is non-blocking.
         If the processdata does not fit in one datagram, multiple are used.
         In order to recombine the slave response, a stack is used.
+
+        Args:
+            release_gil (bool): True to write releasing the GIL. Defaults to False.
         
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
         self.check_context_is_initialized()
+        if release_gil:
+            return self.__send_processdata_nogil()
         return cpysoem.ecx_send_processdata(&self._ecx_contextt)
 
     def send_overlap_processdata(self):
