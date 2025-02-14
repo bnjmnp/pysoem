@@ -330,7 +330,6 @@ cdef extern from "ethercat.h":
     uint16 ecx_statecheck(ecx_contextt *context, uint16 slave, uint16 reqstate, int timeout)
     
     int ecx_send_overlap_processdata(ecx_contextt *context)
-    int ecx_receive_processdata(ecx_contextt *context, int timeout)
     
     int ecx_recover_slave(ecx_contextt *context, uint16 slave, int timeout)
     int ecx_reconfig_slave(ecx_contextt *context, uint16 slave, int timeout)
@@ -357,4 +356,5 @@ cdef extern from "ethercat.h":
 
 cdef extern from "ethercat.h" nogil:
     int ecx_send_processdata(ecx_contextt *context)
+    int ecx_receive_processdata(ecx_contextt *context, int timeout)
     int ecx_FOEwrite(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int psize, void *p, int timeout)
