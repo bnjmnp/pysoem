@@ -489,8 +489,18 @@ cdef class CdefMaster:
         """
         self.check_context_is_initialized()
         return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
+
+    cdef int __receive_processdata_nogil(self, int timeout):
+        """Transmit processdata to slaves without GIL."""
+
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
+        Py_DECREF(self)
+        
+        return result
     
-    def receive_processdata(self, timeout=2000):
+    def receive_processdata(self, timeout=2000, release_gil=False):
         """Receive processdata from slaves.
 
         Second part from send_processdata().
@@ -499,10 +509,13 @@ cdef class CdefMaster:
 
         Args:
             timeout (int): Timeout in us.
+            release_gil (bool): True to write releasing the GIL. Defaults to False.
         Returns
             int: Working Counter
         """
         self.check_context_is_initialized()
+        if release_gil:
+            return self.__receive_processdata_nogil(timeout)
         return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
     
     def _get_slave(self, int pos):
