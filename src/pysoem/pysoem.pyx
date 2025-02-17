@@ -312,19 +312,40 @@ cdef class CdefMaster:
         if not self.context_initialized:
             raise NetworkInterfaceNotOpenError("SOEM Network interface is not initialized or has been closed. Call Master.open() first")
 
+    cdef int __config_init_nogil(self, uint8_t usetable):
+        """Enumerate and init all slaves without GIL.
         
-    def config_init(self, usetable=False):
+        Args:
+            usetable (uint8_t): True when using configtable to init slaves, False otherwise.
+        """
+        cdef int ret_val
+        
+        Py_INCREF(self)
+        with nogil:
+            ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
+        Py_DECREF(self)
+        
+        return ret_val
+        
+    def config_init(self, usetable=False, release_gil=False):
         """Enumerate and init all slaves.
         
         Args:
-            usetable (bool): True when using configtable to init slaves, False otherwise
+            usetable (bool): True when using configtable to init slaves, False otherwise.
+            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
         
         Returns:
             int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
         self.check_context_is_initialized()
         self.slaves = []
-        ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
+        
+        cdef int ret_val
+        if release_gil:
+            ret_val = self.__config_init_nogil(usetable)
+        else:
+            ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
+
         if ret_val > 0:
           for i in range(self._ec_slavecount):
               self.slaves.append(self._get_slave(i))
@@ -451,7 +472,8 @@ cdef class CdefMaster:
 
     cdef int __send_processdata_nogil(self):
         """Transmit processdata to slaves without GIL."""
-
+        cdef int result
+        
         Py_INCREF(self)
         with nogil:
             result = cpysoem.ecx_send_processdata(&self._ecx_contextt)
@@ -491,8 +513,13 @@ cdef class CdefMaster:
         return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
 
     cdef int __receive_processdata_nogil(self, int timeout):
-        """Transmit processdata to slaves without GIL."""
-
+        """Receive processdata from slaves without GIL.
+        
+        Args:
+            timeout (int): Timeout in us.
+        """
+        cdef int result
+        
         Py_INCREF(self)
         with nogil:
             result = cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
@@ -781,7 +808,7 @@ cdef class CdefSlave:
             cpysoem.ecx_dcsync01(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync1_cycle_time, sync0_shift_time) 
 
     cdef int __sdo_read_nogil(self, uint16_t index, uint8_t subindex, int8_t ca, int size_inout, unsigned char* pbuf):
-        """Write to a CoE object without GIL.
+        """Read a CoE object without GIL.
         
         Args:
             index (int): Index of the object.
@@ -790,6 +817,8 @@ cdef class CdefSlave:
             size_inout (int): size in bytes of parameter buffer.
             pbuf (unsigned char*): pointer to parameter buffer.
         """
+        cdef int result
+        
         Py_INCREF(self)
         with nogil:
             result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca, &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
@@ -876,7 +905,7 @@ cdef class CdefSlave:
             size (int): size of the data to be written.
             data (bytes): data to be written to the object.
         """
-
+        cdef int result
         cdef unsigned char* c_data = <unsigned char*> data
 
         Py_INCREF(self)
@@ -1027,7 +1056,7 @@ cdef class CdefSlave:
             data (bytes): data.
             timeout (int): Timeout value in us.
         """
-        cdef uint32_t result
+        cdef int result
         cdef bytes encoded_filename = filename.encode('utf-8')
         cdef char* c_filename = encoded_filename
         cdef unsigned char* c_data = <unsigned char*> data
