@@ -780,7 +780,24 @@ cdef class CdefSlave:
         else:
             cpysoem.ecx_dcsync01(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync1_cycle_time, sync0_shift_time) 
 
-    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False):
+    cdef int __sdo_read_nogil(self, uint16_t index, uint8_t subindex, int8_t ca, int size_inout, unsigned char* pbuf):
+        """Write to a CoE object without GIL.
+        
+        Args:
+            index (int): Index of the object.
+            subindex (int): Subindex of the object.
+            ca (:obj:`bool`): complete access.
+            size_inout (int): size in bytes of parameter buffer.
+            pbuf (unsigned char*): pointer to parameter buffer.
+        """
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca, &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
+        Py_DECREF(self)
+        
+        return result
+
+    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False, release_gil=False):
         """Read a CoE object.
 
         When leaving out the size parameter, objects up to 256 bytes can be read.
@@ -790,7 +807,8 @@ cdef class CdefSlave:
             index (int): Index of the object.
             subindex (int): Subindex of the object.
             size (:obj:`int`, optional): The size of the reading buffer.
-            ca (:obj:`bool`, optional): complete access
+            ca (:obj:`bool`, optional): complete access.
+            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
 
         Returns:
             bytes: The content of the sdo object.
@@ -819,7 +837,11 @@ cdef class CdefSlave:
         if pbuf == NULL:
             raise MemoryError()
         
-        cdef int result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca,
+        cdef int result
+        if release_gil:
+            result = self.__sdo_read_nogil(index, subindex, ca, size_inout, pbuf)
+        else:
+            result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca,
                                               &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
 
         cdef cpysoem.ec_errort err
