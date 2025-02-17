@@ -471,7 +471,7 @@ cdef class CdefMaster:
         In order to recombine the slave response, a stack is used.
 
         Args:
-            release_gil (bool): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
         
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
@@ -509,7 +509,7 @@ cdef class CdefMaster:
 
         Args:
             timeout (int): Timeout in us.
-            release_gil (bool): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
         Returns
             int: Working Counter
         """
@@ -843,8 +843,20 @@ cdef class CdefSlave:
         finally:
             if pbuf != std_buffer:
                 PyMem_Free(pbuf)
+
+    cdef int __sdo_write_nogil(self, uint16_t index, uint8_t subindex, int8_t ca, int size, bytes data):
+        """Write to a CoE object."""
+
+        cdef unsigned char* c_data = <unsigned char*> data
+
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca, size, c_data, self._the_masters_settings.sdo_write_timeout[0])
+        Py_DECREF(self)
+        
+        return result
             
-    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False):
+    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False, release_gil=False):
         """Write to a CoE object.
         
         Args:
@@ -852,6 +864,7 @@ cdef class CdefSlave:
             subindex (int): Subindex of the object.
             data (bytes): data to be written to the object
             ca (:obj:`bool`, optional): complete access
+            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
 
         Raises:
             SdoError: if write fails, the exception includes the SDO abort code  
@@ -862,7 +875,11 @@ cdef class CdefSlave:
         self._master.check_context_is_initialized()
 
         cdef int size = len(data)
-        cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca,
+        cdef int result
+        if release_gil:
+            result = self.__sdo_write_nogil(index, subindex, ca, size, data)
+        else:
+            result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca,
                                                size, <unsigned char*>data, self._the_masters_settings.sdo_write_timeout[0])
         
         cdef cpysoem.ec_errort err
@@ -1000,7 +1017,7 @@ cdef class CdefSlave:
             password (int): password for the target file, accepted range: 0 to 2^32 - 1
             data (bytes): data
             timeout (int): Timeout value in us
-            release_gil (bool): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
         """
         # error handling
         if self._ecx_contextt == NULL:

@@ -320,7 +320,6 @@ cdef extern from "ethercat.h":
     int ecx_config_map_group(ecx_contextt *context, void *pIOmap, uint8 group)
     int ecx_config_overlap_map_group(ecx_contextt *context, void *pIOmap, uint8 group)
     int ecx_SDOread(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int *psize, void *p, int timeout)
-    int ecx_SDOwrite(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int psize, void *p, int Timeout)
     int ecx_readODlist(ecx_contextt *context, uint16 Slave, ec_ODlistt *pODlist)
     int ecx_readODdescription(ecx_contextt *context, uint16 Item, ec_ODlistt *pODlist)
     int ecx_readOE(ecx_contextt *context, uint16 Item, ec_ODlistt *pODlist, ec_OElistt *pOElist)
@@ -358,3 +357,4 @@ cdef extern from "ethercat.h" nogil:
     int ecx_send_processdata(ecx_contextt *context)
     int ecx_receive_processdata(ecx_contextt *context, int timeout)
     int ecx_FOEwrite(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int psize, void *p, int timeout)
+    int ecx_SDOwrite(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int psize, void *p, int Timeout)
