@@ -845,7 +845,15 @@ cdef class CdefSlave:
                 PyMem_Free(pbuf)
 
     cdef int __sdo_write_nogil(self, uint16_t index, uint8_t subindex, int8_t ca, int size, bytes data):
-        """Write to a CoE object."""
+        """Write to a CoE object without GIL.
+        
+        Args:
+            index (int): Index of the object.
+            subindex (int): Subindex of the object.
+            ca (:obj:`bool`): complete access.
+            size (int): size of the data to be written.
+            data (bytes): data to be written to the object.
+        """
 
         cdef unsigned char* c_data = <unsigned char*> data
 
@@ -862,8 +870,8 @@ cdef class CdefSlave:
         Args:
             index (int): Index of the object.
             subindex (int): Subindex of the object.
-            data (bytes): data to be written to the object
-            ca (:obj:`bool`, optional): complete access
+            data (bytes): data to be written to the object.
+            ca (:obj:`bool`, optional): complete access.
             release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
 
         Raises:
