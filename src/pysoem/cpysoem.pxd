@@ -316,7 +316,6 @@ cdef extern from "ethercat.h":
     int ecx_init(ecx_contextt* context, char* ifname)
     int ecx_init_redundant(ecx_contextt *context, ecx_redportt *redport, const char *ifname, char *if2name)
     void ecx_close(ecx_contextt *context)
-    int ecx_config_init(ecx_contextt *context, uint8 usetable)
     int ecx_config_map_group(ecx_contextt *context, void *pIOmap, uint8 group)
     int ecx_config_overlap_map_group(ecx_contextt *context, void *pIOmap, uint8 group)
     int ecx_readODlist(ecx_contextt *context, uint16 Slave, ec_ODlistt *pODlist)
@@ -353,6 +352,7 @@ cdef extern from "ethercat.h":
     int ecx_FPRD(ecx_portt *port, uint16 ADP, uint16 ADO, uint16 length, void *data, int timeout)
 
 cdef extern from "ethercat.h" nogil:
+    int ecx_config_init(ecx_contextt *context, uint8 usetable)
     int ecx_send_processdata(ecx_contextt *context)
     int ecx_receive_processdata(ecx_contextt *context, int timeout)
     int ecx_FOEwrite(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int psize, void *p, int timeout)
