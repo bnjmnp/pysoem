@@ -332,7 +332,7 @@ cdef class CdefMaster:
         
         Args:
             usetable (bool): True when using configtable to init slaves, False otherwise.
-            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to initialize the slaves releasing the GIL. Defaults to False.
         
         Returns:
             int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
@@ -493,7 +493,7 @@ cdef class CdefMaster:
         In order to recombine the slave response, a stack is used.
 
         Args:
-            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to transmit processdata releasing the GIL. Defaults to False.
         
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
@@ -536,7 +536,7 @@ cdef class CdefMaster:
 
         Args:
             timeout (int): Timeout in us.
-            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to receive processdata releasing the GIL. Defaults to False.
         Returns
             int: Working Counter
         """
@@ -837,7 +837,7 @@ cdef class CdefSlave:
             subindex (int): Subindex of the object.
             size (:obj:`int`, optional): The size of the reading buffer.
             ca (:obj:`bool`, optional): complete access.
-            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to read a CoE object releasing the GIL. Defaults to False.
 
         Returns:
             bytes: The content of the sdo object.
@@ -923,7 +923,7 @@ cdef class CdefSlave:
             subindex (int): Subindex of the object.
             data (bytes): data to be written to the object.
             ca (:obj:`bool`, optional): complete access.
-            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to write to a CoE object releasing the GIL. Defaults to False.
 
         Raises:
             SdoError: if write fails, the exception includes the SDO abort code  
@@ -1076,7 +1076,7 @@ cdef class CdefSlave:
             password (int): password for the target file, accepted range: 0 to 2^32 - 1
             data (bytes): data
             timeout (int): Timeout value in us
-            release_gil (:obj:`bool`, optional): True to write releasing the GIL. Defaults to False.
+            release_gil (:obj:`bool`, optional): True to FoE write releasing the GIL. Defaults to False.
         """
         # error handling
         if self._ecx_contextt == NULL:
