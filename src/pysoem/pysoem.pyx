@@ -1030,13 +1030,13 @@ cdef class CdefSlave:
         if result < 0:
             PyMem_Free(pbuf)
             if result == -cpysoem.EC_ERR_TYPE_FOE_ERROR:
-                raise FoeError(self._pos, result, "File not found or access denied")
+                raise FoeError(self._pos, result, "General FoE error")
             elif result == -cpysoem.EC_ERR_TYPE_FOE_BUF2SMALL:
                 raise FoeError(self._pos, result, "Buffer too small for file content")
             elif result == -cpysoem.EC_ERR_TYPE_FOE_PACKETNUMBER:
                 raise FoeError(self._pos, result, "Packet number error")
             elif result == -cpysoem.EC_ERR_TYPE_FOE_FILE_NOTFOUND:
-                raise FoeError(self._pos, result, "File not found")
+                raise FoeError(self._pos, result, "File not found or access denied")
             elif result == -cpysoem.EC_ERR_TYPE_PACKET_ERROR:
                 raise FoeError(self._pos, result, "Unexpected packet received")
             else:
