@@ -655,6 +655,22 @@ class EepromError(Exception):
     def __init__(self, message):
         self.message = message
 
+class FoeError(Exception):
+    """Errors during File over EtherCAT operations
+    
+    Attributes:
+        slave_pos (int): position of the slave
+        error_code (int): error code
+        desc (str): error description
+    """
+
+    def __init__(self, slave_pos, error_code, desc):
+        self.slave_pos = slave_pos
+        self.error_code = error_code
+        self.desc = desc
+        
+    def __str__(self):
+        return f"Slave {self.slave_pos}: FoE Error 0x{self.error_code:x} - {self.desc}"
 
 class WkcError(Exception):
     """Working counter error.
@@ -959,6 +975,19 @@ cdef class CdefSlave:
 
         cdef int size = len(data)
         cdef int result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
+
+        # Check for negative return values from ecx_FOEwrite
+        if result < 0:
+            if result == -cpysoem.EC_ERR_TYPE_FOE_ERROR:
+                raise FoeError(self._pos, result, "General FoE error")
+            elif result == -cpysoem.EC_ERR_TYPE_FOE_PACKETNUMBER:
+                raise FoeError(self._pos, result, "Packet number error")
+            elif result == -cpysoem.EC_ERR_TYPE_FOE_FILE_NOTFOUND:
+                raise FoeError(self._pos, result, "File not found or access denied")
+            elif result == -cpysoem.EC_ERR_TYPE_PACKET_ERROR:
+                raise FoeError(self._pos, result, "Unexpected packet received")
+            else:
+                raise FoeError(self._pos, result, "Unknown FoE error")
         
         # error handling
         cdef cpysoem.ec_errort err
@@ -996,6 +1025,22 @@ cdef class CdefSlave:
             PyMem_Free(pbuf)
             assert err.Slave == self._pos
             self._raise_exception(&err)
+
+        # Check for negative return values from ecx_FOEread
+        if result < 0:
+            PyMem_Free(pbuf)
+            if result == -cpysoem.EC_ERR_TYPE_FOE_ERROR:
+                raise FoeError(self._pos, result, "File not found or access denied")
+            elif result == -cpysoem.EC_ERR_TYPE_FOE_BUF2SMALL:
+                raise FoeError(self._pos, result, "Buffer too small for file content")
+            elif result == -cpysoem.EC_ERR_TYPE_FOE_PACKETNUMBER:
+                raise FoeError(self._pos, result, "Packet number error")
+            elif result == -cpysoem.EC_ERR_TYPE_FOE_FILE_NOTFOUND:
+                raise FoeError(self._pos, result, "File not found")
+            elif result == -cpysoem.EC_ERR_TYPE_PACKET_ERROR:
+                raise FoeError(self._pos, result, "Unexpected packet received")
+            else:
+                raise FoeError(self._pos, result, "Unknown FoE error")
 
         # return data
         try:
