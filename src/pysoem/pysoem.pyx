@@ -1053,6 +1053,7 @@ cdef class CdefSlave:
         Args:
             filename (string): name of the target file.
             password (uint32_t): password for the target file, accepted range: 0 to 2^32 - 1.
+            size (int): size of the file buffer.
             data (bytes): data.
             timeout (int): Timeout value in us.
         """
@@ -1100,14 +1101,36 @@ cdef class CdefSlave:
 
         return result
 
-    def foe_read(self, filename, password, size, timeout = 200000):
-        """ Read given filename from device using FoE
+    cdef int __foe_read_nogil(self, str filename, uint32_t password, int size_inout, unsigned char* pbuf, int timeout):
+        """Read given filename from device using FoE without GIL.
+
+        Args:
+            filename (string): name of the target file.
+            password (int): password for target file
+            size_inout (int): size in bytes of file buffer.
+            pbuf (unsigned char*): data.
+            timeout (int): Timeout value in us.
+        """
+        cdef int result
+        cdef bytes encoded_filename = filename.encode('utf-8')
+        cdef char* c_filename = encoded_filename
+
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, c_filename, password, &size_inout, pbuf, timeout)
+        Py_DECREF(self)
+        
+        return result
+
+    def foe_read(self, filename, password, size, timeout = 200000, release_gil=False):
+        """Read given filename from device using FoE
 
         Args:
             filename (string): name of the target file
             password (int): password for target file
             size (int): maximum file size
             timeout (int): Timeout value in us
+            release_gil (:obj:`bool`, optional): True to FoE write releasing the GIL. Defaults to False.
         """
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
@@ -1120,7 +1143,11 @@ cdef class CdefSlave:
         pbuf = <unsigned char*>PyMem_Malloc((size)*sizeof(unsigned char))
         size_inout = size
 
-        cdef int result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, filename.encode('utf8'), password, &size_inout, pbuf, timeout)
+        cdef int result
+        if release_gil:
+            result = self.__foe_read_nogil(filename, password, size_inout, pbuf, timeout)
+        else:
+            result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, filename.encode('utf8'), password, &size_inout, pbuf, timeout)
 
         # error handling
         cdef cpysoem.ec_errort err
