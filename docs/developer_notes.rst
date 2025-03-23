@@ -8,50 +8,50 @@ Helper Makefile
    include .env
    
    build:
-   	python -m pip install build
-   	python -m build 
+     python -m pip install build
+     python -m build 
    
    clean:
-   	-rm src/pysoem/pysoem.c
-   	-rm src/pysoem/*.pyd
-   	-rm -rf src/pysoem.egg-info
-   	-rm -rf src/pysoem/__pycache__
-   	-rm -rf src/__pycache__
-   	-rm -rf tests/__pycache__
-   	-rm -rf build
-   	-rm -rf dist
-   	-rm -rf .pytest_cache
+     -rm src/pysoem/pysoem.c
+     -rm src/pysoem/*.pyd
+     -rm -rf src/pysoem.egg-info
+     -rm -rf src/pysoem/__pycache__
+     -rm -rf src/__pycache__
+     -rm -rf tests/__pycache__
+     -rm -rf build
+     -rm -rf dist
+     -rm -rf .pytest_cache
    
    uninstall:
-   	python -m pip uninstall -y pysoem
+     python -m pip uninstall -y pysoem
    
    install_local:
-   	python -m pip install .
+     python -m pip install .
    
    install_testpypi:
-   	python -m pip install -i https://test.pypi.org/simple/ pysoem
+     python -m pip install -i https://test.pypi.org/simple/ pysoem
    
    install_pypi:
-   	python -m pip install pysoem
+     python -m pip install pysoem
    
    test:
-   	python -m pip install pytest
-   	pytest tests --ifname=$(IFACE)
+     python -m pip install pytest
+     pytest tests --ifname=$(IFACE)
    
    tox_local:
-   	python -m pip install tox
-   	python -m tox run -c tests/tox_local.ini -- --ifname=$(IFACE)
+     python -m pip install tox
+     python -m tox run -c tests/tox_local.ini -- --ifname=$(IFACE)
    
    tox_test_pypi:
-   	python -m pip install tox
-   	python -m tox run -c tests/tox_test_pypi.ini -- --ifname=$(IFACE)
+     python -m pip install tox
+     python -m tox run -c tests/tox_test_pypi.ini -- --ifname=$(IFACE)
    
    tox_pypi:
-   	python -m pip install tox
-   	python -m tox run -c tests/tox_pypi.ini -- --ifname=$(IFACE)
+     python -m pip install tox
+     python -m tox run -c tests/tox_pypi.ini -- --ifname=$(IFACE)
    
    run_basic_example:
-   	python examples/basic_example.py $(IFACE)
+     python examples/basic_example.py $(IFACE)
 
 Important notice, for the indentation tabs must be used!
 
