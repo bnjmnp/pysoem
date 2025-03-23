@@ -44,3 +44,6 @@ Thumbs.db
 *.flv
 *.mov
 *.wmv
+
+# Local development files
+.env
