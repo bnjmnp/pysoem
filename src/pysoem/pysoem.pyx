@@ -112,9 +112,11 @@ cdef class CdefTimeouts:
 cdef class CdefSettings:
 
     cdef public CdefTimeouts timeouts
+    cdef public cpysoem.boolean always_release_gil
 
     def __init__(self):
         self.timeouts = CdefTimeouts()
+        self.always_release_gil = False
 
 settings = CdefSettings()
 
@@ -201,6 +203,7 @@ class Master(CdefMaster):
         slaves: Gets a list of the slaves found during config_init. The slave instances are of type :class:`CdefSlave`.
         sdo_read_timeout: timeout for SDO read access for all slaves connected
         sdo_write_timeout: timeout for SDO write access for all slaves connected
+        always_release_gil : true to always release the GIL
     """
     pass
 
@@ -243,6 +246,7 @@ cdef class CdefMaster:
     cdef CdefMasterSettings _settings
     cdef public int sdo_read_timeout
     cdef public int sdo_write_timeout
+    cdef public cpysoem.boolean always_release_gil
     cdef readonly cpysoem.boolean context_initialized
 
     state = property(_get_state, _set_state)
@@ -276,6 +280,7 @@ cdef class CdefMaster:
         self.slaves = None
         self.sdo_read_timeout = 700000
         self.sdo_write_timeout = 700000
+        self.always_release_gil = settings.always_release_gil
         self._settings.sdo_read_timeout = &self.sdo_read_timeout
         self._settings.sdo_write_timeout = &self.sdo_write_timeout
         self.context_initialized = False
@@ -326,8 +331,18 @@ cdef class CdefMaster:
         Py_DECREF(self)
         
         return ret_val
+
+    cdef cpysoem.boolean check_release_gil(self, release_gil):
+        """Checks if the GIL should be released.
+
+        Args:
+            release_gil (boolean): True if the GIL should be released, False otherwise.
+        """
+        if release_gil is not None:
+            return release_gil
+        return self.always_release_gil
         
-    def config_init(self, usetable=False, release_gil=False):
+    def config_init(self, usetable=False, release_gil=None):
         """Enumerate and init all slaves.
         
         Args:
@@ -337,6 +352,7 @@ cdef class CdefMaster:
         Returns:
             int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
+        release_gil = self.check_release_gil(release_gil=release_gil)
         self.check_context_is_initialized()
         self.slaves = []
         
@@ -481,7 +497,7 @@ cdef class CdefMaster:
         
         return result
         
-    def send_processdata(self, release_gil=False):
+    def send_processdata(self, *, release_gil=None):
         """Transmit processdata to slaves.
         
         Uses LRW, or LRD/LWR if LRW is not allowed (blockLRW).
@@ -498,6 +514,7 @@ cdef class CdefMaster:
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
+        release_gil = self.check_release_gil(release_gil=release_gil)
         self.check_context_is_initialized()
         if release_gil:
             return self.__send_processdata_nogil()
@@ -527,7 +544,7 @@ cdef class CdefMaster:
         
         return result
     
-    def receive_processdata(self, timeout=2000, release_gil=False):
+    def receive_processdata(self, timeout=2000, release_gil=None):
         """Receive processdata from slaves.
 
         Second part from send_processdata().
@@ -540,6 +557,7 @@ cdef class CdefMaster:
         Returns
             int: Working Counter
         """
+        release_gil = self.check_release_gil(release_gil=release_gil)
         self.check_context_is_initialized()
         if release_gil:
             return self.__receive_processdata_nogil(timeout)
@@ -826,7 +844,7 @@ cdef class CdefSlave:
         
         return result
 
-    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False, release_gil=False):
+    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False, release_gil=None):
         """Read a CoE object.
 
         When leaving out the size parameter, objects up to 256 bytes can be read.
@@ -848,6 +866,7 @@ cdef class CdefSlave:
             PacketError: on packet level error
             WkcError: if working counter is not higher than 0, the exception includes the working counter
         """
+        release_gil = self._master.check_release_gil(release_gil=release_gil)
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
@@ -915,7 +934,7 @@ cdef class CdefSlave:
         
         return result
             
-    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False, release_gil=False):
+    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False, release_gil=None):
         """Write to a CoE object.
         
         Args:
@@ -930,7 +949,8 @@ cdef class CdefSlave:
             MailboxError: on errors in the mailbox protocol
             PacketError: on packet level error
             WkcError: if working counter is not higher than 0, the exception includes the working counter
-        """          
+        """
+        release_gil = self._master.check_release_gil(release_gil=release_gil)
         self._master.check_context_is_initialized()
 
         cdef int size = len(data)
@@ -1069,7 +1089,7 @@ cdef class CdefSlave:
         
         return result
 
-    def foe_write(self, filename, password, bytes data, timeout = 200000, release_gil=False):
+    def foe_write(self, filename, password, bytes data, timeout = 200000, release_gil=None):
         """ Write given data to device using FoE
 
         Args:
@@ -1079,6 +1099,7 @@ cdef class CdefSlave:
             timeout (int): Timeout value in us
             release_gil (:obj:`bool`, optional): True to FoE write releasing the GIL. Defaults to False.
         """
+        release_gil = self._master.check_release_gil(release_gil=release_gil)
         # error handling
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
@@ -1122,7 +1143,7 @@ cdef class CdefSlave:
         
         return result
 
-    def foe_read(self, filename, password, size, timeout = 200000, release_gil=False):
+    def foe_read(self, filename, password, size, timeout = 200000, release_gil=None):
         """Read given filename from device using FoE
 
         Args:
@@ -1132,6 +1153,7 @@ cdef class CdefSlave:
             timeout (int): Timeout value in us
             release_gil (:obj:`bool`, optional): True to FoE write releasing the GIL. Defaults to False.
         """
+        release_gil = self._master.check_release_gil(release_gil=release_gil)
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
