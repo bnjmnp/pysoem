@@ -332,7 +332,7 @@ cdef class CdefMaster:
         
         return ret_val
 
-    cdef cpysoem.boolean check_release_gil(self, release_gil):
+    cpdef cpysoem.boolean check_release_gil(self, release_gil):
         """Checks if the GIL should be released.
 
         Args:
@@ -352,7 +352,7 @@ cdef class CdefMaster:
         Returns:
             int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
-        release_gil = self.check_release_gil(release_gil=release_gil)
+        release_gil = self.check_release_gil(release_gil)
         self.check_context_is_initialized()
         self.slaves = []
         
@@ -514,7 +514,7 @@ cdef class CdefMaster:
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
-        release_gil = self.check_release_gil(release_gil=release_gil)
+        release_gil = self.check_release_gil(release_gil)
         self.check_context_is_initialized()
         if release_gil:
             return self.__send_processdata_nogil()
@@ -557,7 +557,7 @@ cdef class CdefMaster:
         Returns
             int: Working Counter
         """
-        release_gil = self.check_release_gil(release_gil=release_gil)
+        release_gil = self.check_release_gil(release_gil)
         self.check_context_is_initialized()
         if release_gil:
             return self.__receive_processdata_nogil(timeout)
