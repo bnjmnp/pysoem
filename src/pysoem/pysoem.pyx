@@ -28,6 +28,7 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Realloc, PyMem_Free
 from cpython.bytes cimport PyBytes_FromString, PyBytes_FromStringAndSize
 from libc.stdint cimport int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t
 from libc.string cimport memcpy, memset
+from cpython.ref cimport Py_INCREF, Py_DECREF
 
 logger = logging.getLogger(__name__)
 
@@ -111,9 +112,11 @@ cdef class CdefTimeouts:
 cdef class CdefSettings:
 
     cdef public CdefTimeouts timeouts
+    cdef public cpysoem.boolean always_release_gil
 
     def __init__(self):
         self.timeouts = CdefTimeouts()
+        self.always_release_gil = False
 
 settings = CdefSettings()
 
@@ -200,6 +203,7 @@ class Master(CdefMaster):
         slaves: Gets a list of the slaves found during config_init. The slave instances are of type :class:`CdefSlave`.
         sdo_read_timeout: timeout for SDO read access for all slaves connected
         sdo_write_timeout: timeout for SDO write access for all slaves connected
+        always_release_gil : true to always release the GIL
     """
     pass
 
@@ -242,6 +246,7 @@ cdef class CdefMaster:
     cdef CdefMasterSettings _settings
     cdef public int sdo_read_timeout
     cdef public int sdo_write_timeout
+    cdef public cpysoem.boolean always_release_gil
     cdef readonly cpysoem.boolean context_initialized
 
     state = property(_get_state, _set_state)
@@ -275,6 +280,7 @@ cdef class CdefMaster:
         self.slaves = None
         self.sdo_read_timeout = 700000
         self.sdo_write_timeout = 700000
+        self.always_release_gil = settings.always_release_gil
         self._settings.sdo_read_timeout = &self.sdo_read_timeout
         self._settings.sdo_write_timeout = &self.sdo_write_timeout
         self.context_initialized = False
@@ -311,19 +317,51 @@ cdef class CdefMaster:
         if not self.context_initialized:
             raise NetworkInterfaceNotOpenError("SOEM Network interface is not initialized or has been closed. Call Master.open() first")
 
+    cdef int __config_init_nogil(self, uint8_t usetable):
+        """Enumerate and init all slaves without GIL.
         
-    def config_init(self, usetable=False):
+        Args:
+            usetable (uint8_t): True when using configtable to init slaves, False otherwise.
+        """
+        cdef int ret_val
+        
+        Py_INCREF(self)
+        with nogil:
+            ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
+        Py_DECREF(self)
+        
+        return ret_val
+
+    cpdef cpysoem.boolean check_release_gil(self, release_gil):
+        """Checks if the GIL should be released.
+
+        Args:
+            release_gil (boolean): True if the GIL should be released, False otherwise.
+        """
+        if release_gil is not None:
+            return release_gil
+        return self.always_release_gil
+        
+    def config_init(self, usetable=False, release_gil=None):
         """Enumerate and init all slaves.
         
         Args:
-            usetable (bool): True when using configtable to init slaves, False otherwise
+            usetable (bool): True when using configtable to init slaves, False otherwise.
+            release_gil (:obj:`bool`, optional): True to initialize the slaves releasing the GIL. Defaults to False.
         
         Returns:
             int: Working counter of slave discover datagram = number of slaves found, -1 when no slave is connected
         """
+        release_gil = self.check_release_gil(release_gil)
         self.check_context_is_initialized()
         self.slaves = []
-        ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
+        
+        cdef int ret_val
+        if release_gil:
+            ret_val = self.__config_init_nogil(usetable)
+        else:
+            ret_val = cpysoem.ecx_config_init(&self._ecx_contextt, usetable)
+
         if ret_val > 0:
           for i in range(self._ec_slavecount):
               self.slaves.append(self._get_slave(i))
@@ -447,8 +485,19 @@ cdef class CdefMaster:
         """
         self.check_context_is_initialized()
         return cpysoem.ecx_statecheck(&self._ecx_contextt, 0, expected_state, timeout)
+
+    cdef int __send_processdata_nogil(self):
+        """Transmit processdata to slaves without GIL."""
+        cdef int result
         
-    def send_processdata(self):
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_send_processdata(&self._ecx_contextt)
+        Py_DECREF(self)
+        
+        return result
+        
+    def send_processdata(self, *, release_gil=None):
         """Transmit processdata to slaves.
         
         Uses LRW, or LRD/LWR if LRW is not allowed (blockLRW).
@@ -458,11 +507,17 @@ cdef class CdefMaster:
         In contrast to the base LRW function this function is non-blocking.
         If the processdata does not fit in one datagram, multiple are used.
         In order to recombine the slave response, a stack is used.
+
+        Args:
+            release_gil (:obj:`bool`, optional): True to transmit processdata releasing the GIL. Defaults to False.
         
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
+        release_gil = self.check_release_gil(release_gil)
         self.check_context_is_initialized()
+        if release_gil:
+            return self.__send_processdata_nogil()
         return cpysoem.ecx_send_processdata(&self._ecx_contextt)
 
     def send_overlap_processdata(self):
@@ -473,8 +528,23 @@ cdef class CdefMaster:
         """
         self.check_context_is_initialized()
         return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
+
+    cdef int __receive_processdata_nogil(self, int timeout):
+        """Receive processdata from slaves without GIL.
+        
+        Args:
+            timeout (int): Timeout in us.
+        """
+        cdef int result
+        
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
+        Py_DECREF(self)
+        
+        return result
     
-    def receive_processdata(self, timeout=2000):
+    def receive_processdata(self, timeout=2000, release_gil=None):
         """Receive processdata from slaves.
 
         Second part from send_processdata().
@@ -483,10 +553,14 @@ cdef class CdefMaster:
 
         Args:
             timeout (int): Timeout in us.
+            release_gil (:obj:`bool`, optional): True to receive processdata releasing the GIL. Defaults to False.
         Returns
             int: Working Counter
         """
+        release_gil = self.check_release_gil(release_gil)
         self.check_context_is_initialized()
+        if release_gil:
+            return self.__receive_processdata_nogil(timeout)
         return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
     
     def _get_slave(self, int pos):
@@ -710,7 +784,7 @@ cdef class CdefSlave:
     cdef cpysoem.ecx_contextt* _ecx_contextt
     cdef cpysoem.ec_slavet* _ec_slave
     cdef CdefMasterSettings* _the_masters_settings
-    cdef _pos # keep in mind that first slave has pos 1  
+    cdef int _pos # keep in mind that first slave has pos 1  
     cdef public _CallbackData _cd
     cdef cpysoem.ec_ODlistt _ex_odlist
     cdef public _emcy_callbacks
@@ -751,7 +825,26 @@ cdef class CdefSlave:
         else:
             cpysoem.ecx_dcsync01(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync1_cycle_time, sync0_shift_time) 
 
-    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False):
+    cdef int __sdo_read_nogil(self, uint16_t index, uint8_t subindex, int8_t ca, int size_inout, unsigned char* pbuf):
+        """Read a CoE object without GIL.
+        
+        Args:
+            index (int): Index of the object.
+            subindex (int): Subindex of the object.
+            ca (:obj:`bool`): complete access.
+            size_inout (int): size in bytes of parameter buffer.
+            pbuf (unsigned char*): pointer to parameter buffer.
+        """
+        cdef int result
+        
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca, &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
+        Py_DECREF(self)
+        
+        return result
+
+    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False, release_gil=None):
         """Read a CoE object.
 
         When leaving out the size parameter, objects up to 256 bytes can be read.
@@ -761,7 +854,8 @@ cdef class CdefSlave:
             index (int): Index of the object.
             subindex (int): Subindex of the object.
             size (:obj:`int`, optional): The size of the reading buffer.
-            ca (:obj:`bool`, optional): complete access
+            ca (:obj:`bool`, optional): complete access.
+            release_gil (:obj:`bool`, optional): True to read a CoE object releasing the GIL. Defaults to False.
 
         Returns:
             bytes: The content of the sdo object.
@@ -772,6 +866,7 @@ cdef class CdefSlave:
             PacketError: on packet level error
             WkcError: if working counter is not higher than 0, the exception includes the working counter
         """
+        release_gil = self._master.check_release_gil(release_gil=release_gil)
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
@@ -790,7 +885,11 @@ cdef class CdefSlave:
         if pbuf == NULL:
             raise MemoryError()
         
-        cdef int result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca,
+        cdef int result
+        if release_gil:
+            result = self.__sdo_read_nogil(index, subindex, ca, size_inout, pbuf)
+        else:
+            result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca,
                                               &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
 
         cdef cpysoem.ec_errort err
@@ -814,26 +913,52 @@ cdef class CdefSlave:
         finally:
             if pbuf != std_buffer:
                 PyMem_Free(pbuf)
+
+    cdef int __sdo_write_nogil(self, uint16_t index, uint8_t subindex, int8_t ca, int size, bytes data):
+        """Write to a CoE object without GIL.
+        
+        Args:
+            index (int): Index of the object.
+            subindex (int): Subindex of the object.
+            ca (:obj:`bool`): complete access.
+            size (int): size of the data to be written.
+            data (bytes): data to be written to the object.
+        """
+        cdef int result
+        cdef unsigned char* c_data = <unsigned char*> data
+
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca, size, c_data, self._the_masters_settings.sdo_write_timeout[0])
+        Py_DECREF(self)
+        
+        return result
             
-    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False):
+    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False, release_gil=None):
         """Write to a CoE object.
         
         Args:
             index (int): Index of the object.
             subindex (int): Subindex of the object.
-            data (bytes): data to be written to the object
-            ca (:obj:`bool`, optional): complete access
+            data (bytes): data to be written to the object.
+            ca (:obj:`bool`, optional): complete access.
+            release_gil (:obj:`bool`, optional): True to write to a CoE object releasing the GIL. Defaults to False.
 
         Raises:
             SdoError: if write fails, the exception includes the SDO abort code  
             MailboxError: on errors in the mailbox protocol
             PacketError: on packet level error
             WkcError: if working counter is not higher than 0, the exception includes the working counter
-        """          
+        """
+        release_gil = self._master.check_release_gil(release_gil=release_gil)
         self._master.check_context_is_initialized()
 
         cdef int size = len(data)
-        cdef int result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca,
+        cdef int result
+        if release_gil:
+            result = self.__sdo_write_nogil(index, subindex, ca, size, data)
+        else:
+            result = cpysoem.ecx_SDOwrite(self._ecx_contextt, self._pos, index, subindex, ca,
                                                size, <unsigned char*>data, self._the_masters_settings.sdo_write_timeout[0])
         
         cdef cpysoem.ec_errort err
@@ -942,7 +1067,29 @@ cdef class CdefSlave:
         if not result > 0:
             raise EepromError('EEPROM write error')
 
-    def foe_write(self, filename, password, bytes data, timeout = 200000):
+    cdef int __foe_write_nogil(self, str filename, uint32_t password, int size, bytes data, int timeout):
+        """Write given data to device using FoE without GIL.
+
+        Args:
+            filename (string): name of the target file.
+            password (uint32_t): password for the target file, accepted range: 0 to 2^32 - 1.
+            size (int): size of the file buffer.
+            data (bytes): data.
+            timeout (int): Timeout value in us.
+        """
+        cdef int result
+        cdef bytes encoded_filename = filename.encode('utf-8')
+        cdef char* c_filename = encoded_filename
+        cdef unsigned char* c_data = <unsigned char*> data
+
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, c_filename, password, size, c_data, timeout)
+        Py_DECREF(self)
+        
+        return result
+
+    def foe_write(self, filename, password, bytes data, timeout = 200000, release_gil=None):
         """ Write given data to device using FoE
 
         Args:
@@ -950,15 +1097,22 @@ cdef class CdefSlave:
             password (int): password for the target file, accepted range: 0 to 2^32 - 1
             data (bytes): data
             timeout (int): Timeout value in us
+            release_gil (:obj:`bool`, optional): True to FoE write releasing the GIL. Defaults to False.
         """
+        release_gil = self._master.check_release_gil(release_gil=release_gil)
         # error handling
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
         self._master.check_context_is_initialized()
 
+        cdef int result
         cdef int size = len(data)
-        cdef int result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
+        
+        if release_gil:
+            result = self.__foe_write_nogil(filename, password, size, data, timeout)
+        else:
+            result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
         
         # error handling
         cdef cpysoem.ec_errort err
@@ -968,15 +1122,38 @@ cdef class CdefSlave:
 
         return result
 
-    def foe_read(self, filename, password, size, timeout = 200000):
-        """ Read given filename from device using FoE
+    cdef int __foe_read_nogil(self, str filename, uint32_t password, int size_inout, unsigned char* pbuf, int timeout):
+        """Read given filename from device using FoE without GIL.
+
+        Args:
+            filename (string): name of the target file.
+            password (int): password for target file
+            size_inout (int): size in bytes of file buffer.
+            pbuf (unsigned char*): data.
+            timeout (int): Timeout value in us.
+        """
+        cdef int result
+        cdef bytes encoded_filename = filename.encode('utf-8')
+        cdef char* c_filename = encoded_filename
+
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, c_filename, password, &size_inout, pbuf, timeout)
+        Py_DECREF(self)
+        
+        return result
+
+    def foe_read(self, filename, password, size, timeout = 200000, release_gil=None):
+        """Read given filename from device using FoE
 
         Args:
             filename (string): name of the target file
             password (int): password for target file
             size (int): maximum file size
             timeout (int): Timeout value in us
+            release_gil (:obj:`bool`, optional): True to FoE write releasing the GIL. Defaults to False.
         """
+        release_gil = self._master.check_release_gil(release_gil=release_gil)
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
 
@@ -988,7 +1165,11 @@ cdef class CdefSlave:
         pbuf = <unsigned char*>PyMem_Malloc((size)*sizeof(unsigned char))
         size_inout = size
 
-        cdef int result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, filename.encode('utf8'), password, &size_inout, pbuf, timeout)
+        cdef int result
+        if release_gil:
+            result = self.__foe_read_nogil(filename, password, size_inout, pbuf, timeout)
+        else:
+            result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, filename.encode('utf8'), password, &size_inout, pbuf, timeout)
 
         # error handling
         cdef cpysoem.ec_errort err

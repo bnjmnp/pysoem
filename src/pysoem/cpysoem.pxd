@@ -316,11 +316,8 @@ cdef extern from "ethercat.h":
     int ecx_init(ecx_contextt* context, char* ifname)
     int ecx_init_redundant(ecx_contextt *context, ecx_redportt *redport, const char *ifname, char *if2name)
     void ecx_close(ecx_contextt *context)
-    int ecx_config_init(ecx_contextt *context, uint8 usetable)
     int ecx_config_map_group(ecx_contextt *context, void *pIOmap, uint8 group)
     int ecx_config_overlap_map_group(ecx_contextt *context, void *pIOmap, uint8 group)
-    int ecx_SDOread(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int *psize, void *p, int timeout)
-    int ecx_SDOwrite(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int psize, void *p, int Timeout)
     int ecx_readODlist(ecx_contextt *context, uint16 Slave, ec_ODlistt *pODlist)
     int ecx_readODdescription(ecx_contextt *context, uint16 Item, ec_ODlistt *pODlist)
     int ecx_readOE(ecx_contextt *context, uint16 Item, ec_ODlistt *pODlist, ec_OElistt *pOElist)
@@ -329,9 +326,7 @@ cdef extern from "ethercat.h":
     int ecx_writestate(ecx_contextt *context, uint16 slave)
     uint16 ecx_statecheck(ecx_contextt *context, uint16 slave, uint16 reqstate, int timeout)
     
-    int ecx_send_processdata(ecx_contextt *context)
     int ecx_send_overlap_processdata(ecx_contextt *context)
-    int ecx_receive_processdata(ecx_contextt *context, int timeout)
     
     int ecx_recover_slave(ecx_contextt *context, uint16 slave, int timeout)
     int ecx_reconfig_slave(ecx_contextt *context, uint16 slave, int timeout)
@@ -351,8 +346,14 @@ cdef extern from "ethercat.h":
     uint32 ecx_readeeprom(ecx_contextt *context, uint16 slave, uint16 eeproma, int timeout)
     int ecx_writeeeprom(ecx_contextt *context, uint16 slave, uint16 eeproma, uint16 data, int timeout)
 
-    int ecx_FOEread(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int *psize, void *p, int timeout)
-    int ecx_FOEwrite(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int psize, void *p, int timeout)
-
     int ecx_FPWR(ecx_portt *port, uint16 ADP, uint16 ADO, uint16 length, void *data, int timeout)
     int ecx_FPRD(ecx_portt *port, uint16 ADP, uint16 ADO, uint16 length, void *data, int timeout)
+
+cdef extern from "ethercat.h" nogil:
+    int ecx_config_init(ecx_contextt *context, uint8 usetable)
+    int ecx_send_processdata(ecx_contextt *context)
+    int ecx_receive_processdata(ecx_contextt *context, int timeout)
+    int ecx_FOEwrite(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int psize, void *p, int timeout)
+    int ecx_FOEread(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int *psize, void *p, int timeout)
+    int ecx_SDOread(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int *psize, void *p, int timeout)
+    int ecx_SDOwrite(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int psize, void *p, int Timeout)
