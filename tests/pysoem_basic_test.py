@@ -17,6 +17,28 @@ class Device:
     product_code: int
 
 
+@pytest.fixture
+def revert_global_settings():
+    old_timeout_ret = pysoem.settings.timeouts.ret
+    old_timeout_safe = pysoem.settings.timeouts.safe
+    old_timeout_eeprom = pysoem.settings.timeouts.eeprom
+    old_timeout_tx_mailbox = pysoem.settings.timeouts.tx_mailbox
+    old_timeout_rx_mailbox = pysoem.settings.timeouts.rx_mailbox
+    old_timeout_state = pysoem.settings.timeouts.state
+    old_release_gil = pysoem.settings.always_release_gil
+
+    yield None
+
+    pysoem.settings.timeouts.ret = old_timeout_ret
+    pysoem.settings.timeouts.safe = old_timeout_safe
+    pysoem.settings.timeouts.eeprom = old_timeout_eeprom
+    pysoem.settings.timeouts.tx_mailbox = old_timeout_tx_mailbox
+    pysoem.settings.timeouts.rx_mailbox = old_timeout_rx_mailbox
+    pysoem.settings.timeouts.state = old_timeout_state
+    pysoem.settings.always_release_gil = old_release_gil
+
+
+
 def test_version():
     assert isinstance(pysoem.__version__, str)
 
@@ -109,7 +131,7 @@ def test_closed_interface_slave(ifname):
         slaves[0].sdo_read(0x1018, 1)
 
 
-def test_tune_timeouts():
+def test_tune_timeouts(revert_global_settings):
     assert pysoem.settings.timeouts.ret == 2_000
     pysoem.settings.timeouts.ret = 5_000
     assert pysoem.settings.timeouts.ret == 5_000
@@ -135,7 +157,7 @@ def test_tune_timeouts():
     assert pysoem.settings.timeouts.state == 5_000_000
 
 
-def test_release_gil():
+def test_release_gil(revert_global_settings):
     assert pysoem.settings.always_release_gil == 0
     pysoem.settings.always_release_gil = True
     assert pysoem.settings.always_release_gil == 1
