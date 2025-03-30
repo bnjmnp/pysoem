@@ -1,13 +1,13 @@
-
 import dataclasses
+
 import pytest
+
 import pysoem
 
-
 BECKHOFF_VENDOR_ID = 0x0002
-EK1100_PRODUCT_CODE = 0x044c2c52
-EL3002_PRODUCT_CODE = 0x0bba3052
-EL1259_PRODUCT_CODE = 0x04eb3052
+EK1100_PRODUCT_CODE = 0x044C2C52
+EL3002_PRODUCT_CODE = 0x0BBA3052
+EL1259_PRODUCT_CODE = 0x04EB3052
 
 
 @dataclasses.dataclass
@@ -27,6 +27,7 @@ def test_find_adapters():
 
 def test_config_function_exception(pysoem_env):
     """Check if an exception in a config_func callback causes config_map to fail"""
+
     class DummyException(Exception):
         pass
 
@@ -46,10 +47,10 @@ def test_master_context_manager(ifname):
     with pysoem.open(ifname) as master:
         if master.config_init() > 0:
             expected_slave_layout = {
-                0: Device('XMC43-Test-Device', 0, 0x12783456),
-                1: Device('EK1100', BECKHOFF_VENDOR_ID, EK1100_PRODUCT_CODE),
-                2: Device('EL3002', BECKHOFF_VENDOR_ID, EL3002_PRODUCT_CODE),
-                3: Device('EL1259', BECKHOFF_VENDOR_ID, EL1259_PRODUCT_CODE),
+                0: Device("XMC43-Test-Device", 0, 0x12783456),
+                1: Device("EK1100", BECKHOFF_VENDOR_ID, EK1100_PRODUCT_CODE),
+                2: Device("EL3002", BECKHOFF_VENDOR_ID, EL3002_PRODUCT_CODE),
+                3: Device("EL1259", BECKHOFF_VENDOR_ID, EL1259_PRODUCT_CODE),
             }
             for i, slave in enumerate(master.slaves):
                 assert slave.man == expected_slave_layout[i].vendor_id
@@ -59,6 +60,8 @@ def test_master_context_manager(ifname):
 
 
 setup_func_was_called = False
+
+
 def test_setup_function(pysoem_env):
     """Check if the new setup_func works as intended."""
 
@@ -66,7 +69,6 @@ def test_setup_function(pysoem_env):
         global setup_func_was_called
         assert slave.id == EL1259_PRODUCT_CODE
         setup_func_was_called = True
-
 
     pysoem_env.config_init()
     pysoem_env.el1259_setup_func = el1259_setup_func
@@ -131,3 +133,27 @@ def test_tune_timeouts():
     assert pysoem.settings.timeouts.state == 2_000_000
     pysoem.settings.timeouts.state = 5_000_000
     assert pysoem.settings.timeouts.state == 5_000_000
+
+
+def test_release_gil():
+    assert pysoem.settings.always_release_gil == 0
+    pysoem.settings.always_release_gil = True
+    assert pysoem.settings.always_release_gil == 1
+
+    master = pysoem.Master()
+    assert master.always_release_gil == 1
+    assert master.check_release_gil(None) == 1
+    assert master.check_release_gil(True) == 1
+    assert master.check_release_gil(False) == 0
+
+    master.always_release_gil = False
+    assert master.always_release_gil == 0
+    assert pysoem.settings.always_release_gil == 1
+    assert master.check_release_gil(None) == 0
+    assert master.check_release_gil(True) == 1
+    assert master.check_release_gil(False) == 0
+
+    # New master would be created with pysoem.settings.always_release_gil value
+    new_master = pysoem.Master()
+    assert new_master.always_release_gil == 1
+    assert master.always_release_gil == 0
