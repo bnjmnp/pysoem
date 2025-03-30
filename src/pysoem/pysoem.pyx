@@ -342,7 +342,7 @@ cdef class CdefMaster:
             return release_gil
         return self.always_release_gil
         
-    def config_init(self, usetable=False, release_gil=None):
+    def config_init(self, usetable=False, *, release_gil=None):
         """Enumerate and init all slaves.
         
         Args:
@@ -544,7 +544,7 @@ cdef class CdefMaster:
         
         return result
     
-    def receive_processdata(self, timeout=2000, release_gil=None):
+    def receive_processdata(self, timeout=2000, *, release_gil=None):
         """Receive processdata from slaves.
 
         Second part from send_processdata().
@@ -844,7 +844,7 @@ cdef class CdefSlave:
         
         return result
 
-    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False, release_gil=None):
+    def sdo_read(self, index, uint8_t subindex, int size=0, ca=False, *, release_gil=None):
         """Read a CoE object.
 
         When leaving out the size parameter, objects up to 256 bytes can be read.
@@ -934,7 +934,7 @@ cdef class CdefSlave:
         
         return result
             
-    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False, release_gil=None):
+    def sdo_write(self, index, uint8_t subindex, bytes data, ca=False, *, release_gil=None):
         """Write to a CoE object.
         
         Args:
@@ -1089,7 +1089,7 @@ cdef class CdefSlave:
         
         return result
 
-    def foe_write(self, filename, password, bytes data, timeout = 200000, release_gil=None):
+    def foe_write(self, filename, password, bytes data, timeout = 200000, *, release_gil=None):
         """ Write given data to device using FoE
 
         Args:
@@ -1143,7 +1143,7 @@ cdef class CdefSlave:
         
         return result
 
-    def foe_read(self, filename, password, size, timeout = 200000, release_gil=None):
+    def foe_read(self, filename, password, size, timeout = 200000, *, release_gil=None):
         """Read given filename from device using FoE
 
         Args:
