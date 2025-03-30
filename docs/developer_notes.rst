@@ -40,15 +40,15 @@ Helper Makefile
    
    tox_local:
      python -m pip install tox
-     python -m tox run -c tests/tox_local.ini -- --ifname=$(IFACE)
+     python -m tox run -r -c tests/tox_local.ini -- --ifname=$(IFACE)
    
    tox_test_pypi:
      python -m pip install tox
-     python -m tox run -c tests/tox_test_pypi.ini -- --ifname=$(IFACE)
+     python -m tox run -r -c tests/tox_test_pypi.ini -- --ifname=$(IFACE)
    
    tox_pypi:
      python -m pip install tox
-     python -m tox run -c tests/tox_pypi.ini -- --ifname=$(IFACE)
+     python -m tox run -r -c tests/tox_pypi.ini -- --ifname=$(IFACE)
    
    run_basic_example:
      python examples/basic_example.py $(IFACE)
