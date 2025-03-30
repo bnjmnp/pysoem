@@ -75,6 +75,14 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.1.11
+^^^^^^^
+* Adds No-GIL support.
+
+  * Per global setting ``pysoem.settings.always_release_gil``.
+  * Per Master instance attribute ``always_release_gil``.
+  * Per function argument ``release_gil``.
+
 v1.1.10
 ^^^^^^^
 * Adds ``pysoem.settings.timeouts`` to configure low-level timeouts at run-time.
