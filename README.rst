@@ -75,6 +75,11 @@ Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is on
 Changes
 -------
 
+v1.1.12
+^^^^^^^
+* Updates the underlying SOEM to fix segmented io issues
+* Fixes issues with Enums on newer Cython versions
+
 v1.1.11
 ^^^^^^^
 * Adds No-GIL support.
