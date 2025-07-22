@@ -1528,6 +1528,9 @@ cdef class CdefCoeObject:
             return sum
     
     def _get_obj_access(self):
+        # read functions to return correct value if no previous access to other variables is done
+        self._read_description()
+        self._read_entries()
         if self._ex_odlist.MaxSub[self._item] == 0:
             return self._ex_oelist.ObjAccess[0]
         else:
