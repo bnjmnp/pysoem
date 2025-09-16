@@ -825,7 +825,7 @@ cdef class CdefSlave:
         else:
             cpysoem.ecx_dcsync01(self._ecx_contextt, self._pos, act, sync0_cycle_time, sync1_cycle_time, sync0_shift_time) 
 
-    cdef int __sdo_read_nogil(self, uint16_t index, uint8_t subindex, int8_t ca, int size_inout, unsigned char* pbuf):
+    cdef int __sdo_read_nogil(self, uint16_t index, uint8_t subindex, int8_t ca, int* size_inout, unsigned char* pbuf):
         """Read a CoE object without GIL.
         
         Args:
@@ -839,7 +839,7 @@ cdef class CdefSlave:
         
         Py_INCREF(self)
         with nogil:
-            result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca, &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
+            result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca, size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
         Py_DECREF(self)
         
         return result
@@ -887,7 +887,7 @@ cdef class CdefSlave:
         
         cdef int result
         if release_gil:
-            result = self.__sdo_read_nogil(index, subindex, ca, size_inout, pbuf)
+            result = self.__sdo_read_nogil(index, subindex, ca, &size_inout, pbuf)
         else:
             result = cpysoem.ecx_SDOread(self._ecx_contextt, self._pos, index, subindex, ca,
                                               &size_inout, pbuf, self._the_masters_settings.sdo_read_timeout[0])
