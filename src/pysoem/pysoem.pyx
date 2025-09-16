@@ -520,13 +520,25 @@ cdef class CdefMaster:
             return self.__send_processdata_nogil()
         return cpysoem.ecx_send_processdata(&self._ecx_contextt)
 
-    def send_overlap_processdata(self):
+    cdef int __send_overlap_processdata_nogil(self):
+        """Transmit overlap processdata to slaves without GIL."""
+        cdef int result
+        Py_INCREF(self)
+        with nogil:
+            result = cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
+        Py_DECREF(self)
+
+        return result
+
+    def send_overlap_processdata(self, *, release_gil=None):
         """Transmit overlap processdata to slaves.
         
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
         self.check_context_is_initialized()
+        if release_gil:
+            return self.__send_overlap_processdata_nogil()
         return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
 
     cdef int __receive_processdata_nogil(self, int timeout):
