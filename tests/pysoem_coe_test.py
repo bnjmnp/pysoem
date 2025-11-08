@@ -134,14 +134,17 @@ def test_write_timeout(pysoem_env):
     master.sdo_write_timeout = old_sdo_write_timeout
     assert master.sdo_write_timeout == 700000
 
-def test_sdo_obj_access(slaveDevice):
+
+def test_sdo_obj_access(xmc_device):
     """Test single access to 'obj_access'
 
-    Args:
-        slaveDevice (_type_): pysoem slave device
+    :param xmc_device: Fixture providing the XMC device
+
+    This checks for a bug that was fixed in version 1.1.13.
     """
-    obj_0x1000 = get_obj_from_od(slaveDevice.od, 0x1000)
+    obj_0x1000 = get_obj_from_od(xmc_device.od, 0x1000)
     assert obj_0x1000.obj_access == 0x0007
+
 
 def test_sdo_info_var(el1259):
 
