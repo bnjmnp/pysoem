@@ -27,6 +27,9 @@ Helper Makefile
    
    install_local:
      python -m pip install .
+
+   install_github:
+     python -m pip install git+https://github.com/bnjmnp/pysoem.git
    
    install_testpypi:
      python -m pip install -i https://test.pypi.org/simple/ pysoem
