@@ -24,17 +24,17 @@ def watchdog_register_fix(watchdog_device):
 
 
 @pytest.mark.parametrize('wd', ['pdi', 'processdata'])
-@pytest.mark.parametrize('time_ms,expected_reg_value', [
-    (100, 1000),
-    (10, 100),
-    (1, 10),
-    (0.1, 1),
-    (0.15, 1),
-    (0.2555, 2),
-    (0, 0),
-    (6553.6, AttributeError()),
+@pytest.mark.parametrize('time_ms,expected_reg_value,expect_a_warning', [
+    (100, 1000, False),
+    (10, 100, False),
+    (1, 10, False),
+    (0.1, 1, False),
+    (0.15, 1, True),
+    (0.2555, 2, True),
+    (0, 0, False),
+    (6553.6, AttributeError(), False),
 ])
-def test_watchdog_update(watchdog_device, watchdog_register_fix, wd, time_ms, expected_reg_value):
+def test_watchdog_update(watchdog_device, watchdog_register_fix, recwarn, wd, time_ms, expected_reg_value, expect_a_warning):
     """Test the set_watchdog() function of the CdefSlave object."""
     wd_reg = {
         'pdi': 0x410,
@@ -45,7 +45,16 @@ def test_watchdog_update(watchdog_device, watchdog_register_fix, wd, time_ms, ex
             watchdog_device.set_watchdog(wd_type=wd, wd_time_ms=time_ms)
         assert exec_info.value.args[0] == "wd_time_ms is limited to 6553.5 ms"
     else:
-        watchdog_device.set_watchdog(wd_type=wd, wd_time_ms=time_ms)
-        assert watchdog_device._fprd(address=wd_reg[wd], size=2, timeout_us=4000) == expected_reg_value.to_bytes(2, byteorder='little', signed=False)
         watchdog_divider = 100000
-        assert watchdog_device.get_watchdog(wd_type=wd) == expected_reg_value*watchdog_divider/1000000.0
+        expected_watchdog_time = expected_reg_value*watchdog_divider/1000000.0
+        if expect_a_warning:
+            with pytest.warns(UserWarning) as record:
+                watchdog_device.set_watchdog(wd_type=wd, wd_time_ms=time_ms)
+            assert record[0].message.args[0] == f"The actual set watchdog time ({expected_watchdog_time} ms) differs from the requested watchdog time ({time_ms} ms) due to resolution limits of the hardware!"
+            assert len(record) == 1, "More then one warning was emitted!"
+            
+        else:
+            watchdog_device.set_watchdog(wd_type=wd, wd_time_ms=time_ms)
+            assert len(recwarn) == 0, "A warning was emitted unexpectedly!"
+        assert watchdog_device._fprd(address=wd_reg[wd], size=2, timeout_us=4000) == expected_reg_value.to_bytes(2, byteorder='little', signed=False)
+        assert watchdog_device.get_watchdog(wd_type=wd) == expected_watchdog_time

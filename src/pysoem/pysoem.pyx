@@ -1266,6 +1266,11 @@ cdef class CdefSlave:
         self._fpwr(wd_type_to_reg_map[wd_type],
                    wd_time_reg.to_bytes(2, byteorder='little', signed=False),
                    fprd_fpwr_timeout_us)
+        
+        actual_wd_time_ms = wd_time_reg * wd_div_ns / 1000000.0
+
+        if actual_wd_time_ms != wd_time_ms:
+            warnings.warn(f'The actual set watchdog time ({actual_wd_time_ms} ms) differs from the requested watchdog time ({wd_time_ms} ms) due to resolution limits of the hardware!', UserWarning)
 
     def get_watchdog(self, wd_type):
         """Get the watchdog time of the PDI or Process Data watchdog.
