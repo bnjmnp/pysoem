@@ -2,11 +2,6 @@
 requires = ["setuptools>=42", "wheel", "Cython>=0.29.31"]
 build-backend = "setuptools.build_meta"
 
-[tool.cibuildwheel]
-# Skip building on CPython 3.6 on all platforms - because 3.6 it is causing issues.
-# Disable building PyPy wheels on all platforms - because it is causing issues on macos-13
-skip = ["cp36-*", "pp*"]
-
 # Limit the created wheels for windows to AMD64.
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
