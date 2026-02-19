@@ -814,6 +814,22 @@ class EepromError(Exception):
     def __init__(self, message):
         self.message = message
 
+class FoeError(Exception):
+    """Errors during File over EtherCAT operations
+    
+    Attributes:
+        slave_pos (int): position of the slave
+        error_code (int): error code
+        desc (str): error description
+    """
+
+    def __init__(self, slave_pos, error_code, desc):
+        self.slave_pos = slave_pos
+        self.error_code = error_code
+        self.desc = desc
+        
+    def __str__(self):
+        return f"Slave {self.slave_pos}: FoE Error 0x{self.error_code:x} - {self.desc}"
 
 class WkcError(Exception):
     """Working counter error.
@@ -1190,7 +1206,7 @@ cdef class CdefSlave:
         cdef int result
         cdef int size = len(data)
         cdef cpysoem.ec_errort err
-        
+
         release_gil = self._master.check_release_gil(release_gil=release_gil)
         # error handling
         if self._ecx_contextt == NULL:
@@ -1201,11 +1217,13 @@ cdef class CdefSlave:
                 result = self.__foe_write_nogil(filename, password, size, data, timeout)
             else:
                 result = cpysoem.ecx_FOEwrite(self._ecx_contextt, self._pos, filename.encode('utf8'), password, size, <unsigned char*>data, timeout)
-            
+
             # error handling
             if cpysoem.ecx_poperror(self._ecx_contextt, &err):
                 assert err.Slave == self._pos
                 self._raise_exception(&err)
+
+            self._check_foe_result(result)
 
             return result
 
@@ -1227,7 +1245,7 @@ cdef class CdefSlave:
         with nogil:
             result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, c_filename, password, &size_inout, pbuf, timeout)
         Py_DECREF(self)
-        
+
         return result
 
     def foe_read(self, filename, password, size, timeout = 200000, *, release_gil=None):
@@ -1244,7 +1262,7 @@ cdef class CdefSlave:
         cdef int size_inout
         cdef int result
         cdef cpysoem.ec_errort err
-        
+
         release_gil = self._master.check_release_gil(release_gil=release_gil)
         if self._ecx_contextt == NULL:
             raise UnboundLocalError()
@@ -1252,21 +1270,26 @@ cdef class CdefSlave:
         with self._master._operation_context():
             # prepare call of c function
             pbuf = <unsigned char*>PyMem_Malloc((size)*sizeof(unsigned char))
+            if pbuf == NULL:
+                raise MemoryError()
+
+            # Initialize buffer to zeros to prevent stale data if read operation fails early
+            memset(pbuf, 0, size*sizeof(unsigned char))
             size_inout = size
 
-            if release_gil:
-                result = self.__foe_read_nogil(filename, password, size_inout, pbuf, timeout)
-            else:
-                result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, filename.encode('utf8'), password, &size_inout, pbuf, timeout)
-
-            # error handling
-            if cpysoem.ecx_poperror(self._ecx_contextt, &err):
-                PyMem_Free(pbuf)
-                assert err.Slave == self._pos
-                self._raise_exception(&err)
-
-            # return data
             try:
+                if release_gil:
+                    result = self.__foe_read_nogil(filename, password, size_inout, pbuf, timeout)
+                else:
+                    result = cpysoem.ecx_FOEread(self._ecx_contextt, self._pos, filename.encode('utf8'), password, &size_inout, pbuf, timeout)
+
+                # error handling
+                if cpysoem.ecx_poperror(self._ecx_contextt, &err):
+                    assert err.Slave == self._pos
+                    self._raise_exception(&err)
+
+                self._check_foe_result(result)
+
                 return PyBytes_FromStringAndSize(<char*>pbuf, size_inout)
             finally:
                 PyMem_Free(pbuf)
@@ -1442,6 +1465,23 @@ cdef class CdefSlave:
         cdef int wkc = cpysoem.ecx_FPWR(self._ecx_contextt.port, self._ec_slave.configadr, address, <int>len(data), <unsigned char*>data, timeout_us)
         if wkc != 1:
             raise WkcError()
+
+    cdef _check_foe_result(self, int result):
+        if result < 0:
+            if result == -cpysoem.EC_ERR_TYPE_FOE_ERROR:
+                raise FoeError(self._pos, result, "General FoE error")
+            elif result == -cpysoem.EC_ERR_TYPE_FOE_BUF2SMALL:
+                raise FoeError(self._pos, result, "Buffer too small for file content")
+            elif result == -cpysoem.EC_ERR_TYPE_FOE_PACKETNUMBER:
+                raise FoeError(self._pos, result, "Packet number error")
+            elif result == -cpysoem.EC_ERR_TYPE_FOE_FILE_NOTFOUND:
+                raise FoeError(self._pos, result, "File not found or access denied")
+            elif result == -cpysoem.EC_ERR_TYPE_PACKET_ERROR:
+                raise FoeError(self._pos, result, "Unexpected packet received")
+            else:
+                raise FoeError(self._pos, result, "Unknown FoE error")
+        if result == 0:
+            raise WkcError(wkc=result)
 
     cdef _raise_exception(self, cpysoem.ec_errort* err):
         if err.Etype == cpysoem.EC_ERR_TYPE_SDO_ERROR:

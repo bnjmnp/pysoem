@@ -8,6 +8,7 @@ from pysoem.pysoem import (
     Emergency,
     SdoInfoError,
     MailboxError,
+    FoeError,
     PacketError,
     ConfigMapError,
     EepromError,

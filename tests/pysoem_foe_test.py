@@ -41,3 +41,15 @@ def test_foe_fails(pysoem_env):
     assert excinfo.value.error_code == 2
     assert excinfo.value.desc == 'The mailbox protocol is not supported'
 
+def test_foe_nonexistent_file(pysoem_env):
+    """Test that reading a non-existent file raises an appropriate exception."""
+    pysoem_env.config_init()
+    test_slave = pysoem_env.get_xmc_test_device()
+    
+    # Expect foe_read to fail for a non-existent file
+    with pytest.raises(pysoem.FoeError) as excinfo: 
+        test_slave.foe_read('nonexistent.bin', 0, 8192)
+
+    # Expect foe_write to fail for a non-existent file
+    with pytest.raises(pysoem.FoeError) as excinfo: 
+        test_slave.foe_write('nonexistent.bin', 0, b"test-data")
