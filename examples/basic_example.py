@@ -134,12 +134,12 @@ class BasicExample:
 
         self._master.config_map()
 
+        for slave in self._master.slaves:
+            slave.dc_sync(act=True, sync0_cycle_time=10_000_000)  # time is given in ns -> 10,000,000ns = 10ms
+
         if self._master.state_check(pysoem.SAFEOP_STATE, timeout=50_000) != pysoem.SAFEOP_STATE:
             self._master.close()
             raise BasicExampleError("not all slaves reached SAFEOP state")
-        
-        for slave in self._master.slaves:
-            slave.dc_sync(act=True, sync0_cycle_time=10_000_000)  # time is given in ns -> 10,000,000ns = 10ms
 
         self._master.state = pysoem.OP_STATE
 
