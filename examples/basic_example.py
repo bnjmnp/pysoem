@@ -28,6 +28,7 @@ EL1259_PRODUCT_CODE = 0x04EB_3052
 
 @dataclasses.dataclass
 class Device:
+    """Definition of a slave device on the EtherCAT network."""
     name: str
     vendor_id: int
     product_code: int
@@ -35,7 +36,10 @@ class Device:
 
 
 class BasicExample:
+    """An instance of the basic example."""
+
     def __init__(self, ifname: str, ifname_red: str) -> None:
+        """Create the example using the given adapter and secondary adapter for redundancy."""
         self._ifname = ifname
         self._ifname_red = ifname_red
         self._pd_thread_stop_event = threading.Event()
@@ -119,6 +123,7 @@ class BasicExample:
             print("stopped")
 
     def run(self) -> None:
+        """Run the example, starting the EtherCAT connection."""
         self._master.open(self._ifname, self._ifname_red)
 
         if not self._master.config_init() > 0:
@@ -183,6 +188,7 @@ class BasicExample:
 
     @staticmethod
     def _check_slave(slave: CdefSlave, pos: int) -> None:
+        """Check what error state the slave is in, and try to recover if possible."""
         if slave.state == (pysoem.SAFEOP_STATE + pysoem.STATE_ERROR):
             print(f"ERROR : slave {pos} is in SAFE_OP + ERROR, attempting ack.")
             slave.state = pysoem.SAFEOP_STATE + pysoem.STATE_ACK
@@ -210,6 +216,7 @@ class BasicExample:
                 print(f"MESSAGE : slave {pos} found")
 
     def _check_thread(self) -> None:
+        """Background thread that cyclically checks for network errors at a 10ms interval."""
         while not self._ch_thread_stop_event.is_set():
             if self._master.in_op and ((self._actual_wkc < self._master.expected_wkc) or self._master.do_check_state):
                 self._master.do_check_state = False
@@ -224,6 +231,7 @@ class BasicExample:
 
 
 class BasicExampleError(Exception):
+    """Generic exception type for the basic example."""
     def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
