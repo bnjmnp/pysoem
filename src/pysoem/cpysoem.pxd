@@ -350,8 +350,11 @@ cdef extern from "ethercat.h":
 cdef extern from "ethercat.h" nogil:
     int ecx_config_init(ecx_contextt *context, uint8 usetable)
     int ecx_send_processdata(ecx_contextt *context)
+    int ecx_send_processdata_group(ecx_contextt *context, uint8 group)
+    int ecx_send_overlap_processdata_group(ecx_contextt *context, uint8 group)
     int ecx_send_overlap_processdata(ecx_contextt *context)
     int ecx_receive_processdata(ecx_contextt *context, int timeout)
+    int ecx_receive_processdata_group(ecx_contextt *context, uint8 group, int timeout)
     int ecx_FOEwrite(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int psize, void *p, int timeout)
     int ecx_FOEread(ecx_contextt *context, uint16 slave, char *filename, uint32 password, int *psize, void *p, int timeout)
     int ecx_SDOread(ecx_contextt *context, uint16 slave, uint16 index, uint8 subindex, boolean CA, int *psize, void *p, int timeout)
