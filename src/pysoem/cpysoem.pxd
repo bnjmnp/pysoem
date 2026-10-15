@@ -23,6 +23,8 @@ cdef extern from "ethercat.h":
         EC_MAXBUF = 16
         EC_MAXMBX = 1486
         EC_BUFSIZE = 1518
+        EC_MAXSM
+        EC_MAXFMMU
     
     ec_adaptert* ec_find_adapters()
         
