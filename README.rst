@@ -67,10 +67,11 @@ Please also have a look at `the examples on GitHub <https://github.com/bnjmnp/py
 Contribution
 ------------
 
-Any contributions are welcome and highly appreciated.
-Let's discuss any (major) API change, or large piles of new code first.
-Using `this pysoem chat room on gitter <https://gitter.im/pysoem/pysoem>`_ is one communication channel option.
+Contributions are welcome and highly appreciated!
 
+If you are planning a major API change or intend to submit a large amount of new code, please open an issue or start a discussion first so we can agree on the approach before you begin.
+
+Please follow `PEP 8 <https://peps.python.org/pep-0008/>`_ for Python code style. Using `Ruff <https://docs.astral.sh/ruff/>`_ to format and lint your code before submitting a pull request is recommended.
 
 Changes
 -------
