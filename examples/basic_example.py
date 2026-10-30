@@ -17,6 +17,7 @@ import argparse
 
 
 import pysoem
+from pysoem import CdefSlave
 
 
 BECKHOFF_VENDOR_ID = 0x0000_0002
@@ -27,29 +28,38 @@ EL1259_PRODUCT_CODE = 0x04EB_3052
 
 @dataclasses.dataclass
 class Device:
+    """Definition of a slave device on the EtherCAT network."""
     name: str
-    vendor_id: int
-    product_code: int
-    config_func: typing.Callable = None
+    vendor_id: int  # EtherCAT vendor ID (Object 0x1018:1)
+    product_code: int  # EtherCAT product code (Object 0x1018:2)
+    config_func: typing.Callable = None  # Called during Pre-Op -> Safe-Op transition.
 
 
 class BasicExample:
-    def __init__(self, ifname, ifname_red):
+    """An instance of the basic example."""
+
+    def __init__(self, ifname: str, ifname_red: str) -> None:
+        """Create the example using the given adapter and secondary adapter for redundancy."""
         self._ifname = ifname
         self._ifname_red = ifname_red
+        self._actual_wkc = 0  # Measured working counter value.
+
+        # Stop flags for background threads.
         self._pd_thread_stop_event = threading.Event()
         self._ch_thread_stop_event = threading.Event()
-        self._actual_wkc = 0
+
+        # Initialize the master.
         self._master = pysoem.Master()
         self._master.in_op = False
         self._master.do_check_state = False
+
         self._expected_slave_layout = {
             0: Device("EK1100", BECKHOFF_VENDOR_ID, EK1100_PRODUCT_CODE),
             1: Device("EL3002", BECKHOFF_VENDOR_ID, EL3002_PRODUCT_CODE),
             2: Device("EL1259", BECKHOFF_VENDOR_ID, EL1259_PRODUCT_CODE, self.el1259_setup)
         }
 
-    def el1259_setup(self, slave_pos):
+    def el1259_setup(self, slave_pos: int) -> None:
         """Config function that will be called when transitioning from PreOP state to SafeOP state."""
         slave = self._master.slaves[slave_pos]
 
@@ -77,18 +87,22 @@ class BasicExample:
         ]
         rx_map_obj_bytes = struct.pack(
             "Bx" + "".join(["H" for _ in range(len(rx_map_obj))]), len(rx_map_obj), *rx_map_obj)
+
+        # Assign rx PDOs.
         slave.sdo_write(index=0x1C12, subindex=0, data=rx_map_obj_bytes, ca=True)
 
-    def _processdata_thread(self):
+    def _processdata_thread(self) -> None:
         """Background thread that sends and receives the process-data frame in a 10ms interval."""
         while not self._pd_thread_stop_event.is_set():
             self._master.send_processdata()
             self._actual_wkc = self._master.receive_processdata(timeout=100_000)
+
+            # Check working counter.
             if not self._actual_wkc == self._master.expected_wkc:
                 print("incorrect wkc")
             time.sleep(0.01)
 
-    def _pdo_update_loop(self):
+    def _pdo_update_loop(self) -> None:
         """The actual application code used to toggle the digital output at the EL1259 in an endless loop.
 
         Called when all slaves reached OP state.
@@ -117,13 +131,16 @@ class BasicExample:
             # ctrl-C abort handling
             print("stopped")
 
-    def run(self):
+    def run(self) -> None:
+        """Run the example, starting the EtherCAT connection."""
         self._master.open(self._ifname, self._ifname_red)
 
+        # Populate all slaves on the network.
         if not self._master.config_init() > 0:
             self._master.close()
             raise BasicExampleError("no slave found")
 
+        # Validate each slave based on the expected configuration.
         for i, slave in enumerate(self._master.slaves):
             if not ((slave.man == self._expected_slave_layout[i].vendor_id) and
                     (slave.id == self._expected_slave_layout[i].product_code)):
@@ -132,13 +149,19 @@ class BasicExample:
             slave.config_func = self._expected_slave_layout[i].config_func
             slave.is_lost = False
 
+        # Map PDO Data.
         self._master.config_map()
+
+        # Setup distributed clocks.
+        for slave in self._master.slaves:
+            slave.dc_sync(act=True, sync0_cycle_time=10_000_000)  # time is given in ns -> 10,000,000ns = 10ms
+
+        dc_devices = self._master.config_dc()
+        print(f"Configured DC. Found {dc_devices} compatible devices")
 
         if self._master.state_check(pysoem.SAFEOP_STATE, timeout=50_000) != pysoem.SAFEOP_STATE:
             self._master.close()
             raise BasicExampleError("not all slaves reached SAFEOP state")
-        
-        slave.dc_sync(act=True, sync0_cycle_time=10_000_000)  # time is given in ns -> 10,000,000ns = 10ms
 
         self._master.state = pysoem.OP_STATE
 
@@ -154,6 +177,7 @@ class BasicExample:
 
         self._master.write_state()
 
+        # Sometimes slaves will not reach OP on the first attempt. Retry as needed.
         all_slaves_reached_op_state = False
         for i in range(40):
             self._master.state_check(pysoem.OP_STATE, timeout=50_000)
@@ -164,6 +188,7 @@ class BasicExample:
         if all_slaves_reached_op_state:
             self._pdo_update_loop()
 
+        # Cleanup on exiting
         self._pd_thread_stop_event.set()
         self._ch_thread_stop_event.set()
         proc_thread.join()
@@ -177,7 +202,8 @@ class BasicExample:
             raise BasicExampleError("not all slaves reached OP state")
 
     @staticmethod
-    def _check_slave(slave, pos):
+    def _check_slave(slave: CdefSlave, pos: int) -> None:
+        """Check what error state the slave is in, and try to recover if possible."""
         if slave.state == (pysoem.SAFEOP_STATE + pysoem.STATE_ERROR):
             print(f"ERROR : slave {pos} is in SAFE_OP + ERROR, attempting ack.")
             slave.state = pysoem.SAFEOP_STATE + pysoem.STATE_ACK
@@ -204,11 +230,15 @@ class BasicExample:
                 slave.is_lost = False
                 print(f"MESSAGE : slave {pos} found")
 
-    def _check_thread(self):
+    def _check_thread(self) -> None:
+        """Background thread that cyclically checks for network errors at a 10ms interval."""
         while not self._ch_thread_stop_event.is_set():
+            # Check for working counter errors.
             if self._master.in_op and ((self._actual_wkc < self._master.expected_wkc) or self._master.do_check_state):
                 self._master.do_check_state = False
                 self._master.read_state()
+
+                # Check that all slaves are ok.
                 for i, slave in enumerate(self._master.slaves):
                     if slave.state != pysoem.OP_STATE:
                         self._master.do_check_state = True
@@ -219,7 +249,8 @@ class BasicExample:
 
 
 class BasicExampleError(Exception):
-    def __init__(self, message):
+    """Generic exception type for the basic example."""
+    def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
 

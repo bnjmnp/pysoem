@@ -251,7 +251,7 @@ class Master(CdefMaster):
 
 cdef enum:
     EC_MAXSLAVE = 200
-    EC_MAXGROUP = 1
+    EC_MAXGROUP = 2
     EC_MAXEEPBITMAP = 128
     EC_MAXEEPBUF = EC_MAXEEPBITMAP * 32
     EC_MAXMAPT = 8
@@ -429,16 +429,25 @@ cdef class CdefMaster:
                   self.slaves.append(self._get_slave(i))
             return ret_val
         
-    def config_map(self):
+    def _validate_group(self, group):
+        if isinstance(group, bool) or not isinstance(group, int) or not 0 <= group < EC_MAXGROUP:
+            raise ValueError(f"Invalid group {group}. Group must be between 0 and {EC_MAXGROUP - 1}.")
+        return group
+
+    def config_map(self, group=0):
         """Map all slaves PDOs in IO map.
+
+        Args:
+            group: Process-data group to map. Defaults to group 0.
         
         Returns:
             int: IO map size (sum of all PDO in an out data)
         """
+        group = self._validate_group(group)
         cdef _CallbackData cd
         with self._operation_context():
             # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
-            ret_val = cpysoem.ecx_config_map_group(&self._ecx_contextt, &self.io_map, 0)
+            ret_val = cpysoem.ecx_config_map_group(&self._ecx_contextt, &self.io_map, group)
             # check for exceptions raised in the config functions
             for slave in self.slaves:
                 cd = slave._cd
@@ -451,16 +460,20 @@ cdef class CdefMaster:
                 raise ConfigMapError(error_list)
             return ret_val
         
-    def config_overlap_map(self):
+    def config_overlap_map(self, group=0):
         """Map all slaves PDOs to overlapping IO map.
+
+        Args:
+            group: Process-data group to map. Defaults to group 0.
         
         Returns:
             int: IO map size (sum of all PDO in an out data)
         """
+        group = self._validate_group(group)
         cdef _CallbackData cd
         with self._operation_context():
             # ecx_config_map_group returns the actual IO map size (not an error value), expect the value to be less than EC_IOMAPSIZE
-            ret_val = cpysoem.ecx_config_overlap_map_group(&self._ecx_contextt, &self.io_map, 0)
+            ret_val = cpysoem.ecx_config_overlap_map_group(&self._ecx_contextt, &self.io_map, group)
             # check for exceptions raised in the config functions
             for slave in self.slaves:
                 cd = slave._cd
@@ -560,18 +573,18 @@ cdef class CdefMaster:
         with self._operation_context():
             return cpysoem.ecx_statecheck(&self._ecx_contextt, 0, expected_state, timeout)
 
-    cdef int __send_processdata_nogil(self):
+    cdef int __send_processdata_nogil(self, cpysoem.uint8 group):
         """Transmit processdata to slaves without GIL."""
         cdef int result
         
         Py_INCREF(self)
         with nogil:
-            result = cpysoem.ecx_send_processdata(&self._ecx_contextt)
+            result = cpysoem.ecx_send_processdata_group(&self._ecx_contextt, group)
         Py_DECREF(self)
         
         return result
         
-    def send_processdata(self, *, release_gil=None):
+    def send_processdata(self, *, group=0, release_gil=None):
         """Transmit processdata to slaves.
         
         Uses LRW, or LRD/LWR if LRW is not allowed (blockLRW).
@@ -583,39 +596,47 @@ cdef class CdefMaster:
         In order to recombine the slave response, a stack is used.
 
         Args:
+            group (int): Process-data group. Defaults to group 0.
             release_gil (:obj:`bool`, optional): True to transmit processdata releasing the GIL. Defaults to False.
         
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
+        group = self._validate_group(group)
         release_gil = self.check_release_gil(release_gil)
         with self._operation_context():
             if release_gil:
-                return self.__send_processdata_nogil()
-            return cpysoem.ecx_send_processdata(&self._ecx_contextt)
+                return self.__send_processdata_nogil(group)
+            return cpysoem.ecx_send_processdata_group(&self._ecx_contextt, group)
 
-    cdef int __send_overlap_processdata_nogil(self):
+    cdef int __send_overlap_processdata_nogil(self, cpysoem.uint8 group):
         """Transmit overlap processdata to slaves without GIL."""
         cdef int result
         Py_INCREF(self)
         with nogil:
-            result = cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
+            result = cpysoem.ecx_send_overlap_processdata_group(&self._ecx_contextt, group)
         Py_DECREF(self)
 
         return result
 
-    def send_overlap_processdata(self, *, release_gil=None):
+    def send_overlap_processdata(self, *, group=0, release_gil=None):
         """Transmit overlap processdata to slaves.
+
+        Args:
+            group (int): Process-data group. Defaults to group 0.
+            release_gil (:obj:`bool`, optional): True to transmit processdata releasing the GIL.
         
         Returns:
             int: >0 if processdata is transmitted, might only by 0 if config map is not configured properly
         """
+        group = self._validate_group(group)
+        release_gil = self.check_release_gil(release_gil)
         with self._operation_context():
             if release_gil:
-                return self.__send_overlap_processdata_nogil()
-            return cpysoem.ecx_send_overlap_processdata(&self._ecx_contextt)
+                return self.__send_overlap_processdata_nogil(group)
+            return cpysoem.ecx_send_overlap_processdata_group(&self._ecx_contextt, group)
 
-    cdef int __receive_processdata_nogil(self, int timeout):
+    cdef int __receive_processdata_nogil(self, cpysoem.uint8 group, int timeout):
         """Receive processdata from slaves without GIL.
         
         Args:
@@ -625,12 +646,12 @@ cdef class CdefMaster:
         
         Py_INCREF(self)
         with nogil:
-            result = cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
+            result = cpysoem.ecx_receive_processdata_group(&self._ecx_contextt, group, timeout)
         Py_DECREF(self)
         
         return result
     
-    def receive_processdata(self, timeout=2000, *, release_gil=None):
+    def receive_processdata(self, timeout=2000, *, group=0, release_gil=None):
         """Receive processdata from slaves.
 
         Second part from send_processdata().
@@ -639,15 +660,17 @@ cdef class CdefMaster:
 
         Args:
             timeout (int): Timeout in us.
+            group (int): Process-data group. Defaults to group 0.
             release_gil (:obj:`bool`, optional): True to receive processdata releasing the GIL. Defaults to False.
         Returns
             int: Working Counter
         """
+        group = self._validate_group(group)
         release_gil = self.check_release_gil(release_gil)
         with self._operation_context():
             if release_gil:
-                return self.__receive_processdata_nogil(timeout)
-            return cpysoem.ecx_receive_processdata(&self._ecx_contextt, timeout)
+                return self.__receive_processdata_nogil(group, timeout)
+            return cpysoem.ecx_receive_processdata_group(&self._ecx_contextt, group, timeout)
     
     def _get_slave(self, int pos):
         if pos < 0:
@@ -671,9 +694,25 @@ cdef class CdefMaster:
     def _set_state(self, value):
         self._ec_slave[0].state = value
     
-    def _get_expected_wkc(self):
-        """Calculates the expected Working Counter"""
-        return (self._ec_group[0].outputsWKC * 2) + self._ec_group[0].inputsWKC
+    def _get_expected_wkc(self, group=0):
+        """Calculate the expected Working Counter for a process-data group.
+
+        The ``expected_wkc`` property calls this getter without an argument and
+        therefore continues to return the group-0 value.
+
+        Args:
+            group: Process-data group. Defaults to group 0.
+        """
+        group = self._validate_group(group)
+        return (self._ec_group[group].outputsWKC * 2) + self._ec_group[group].inputsWKC
+
+    def get_expected_wkc(self, group=0):
+        """Calculate the expected process-data Working Counter for a group.
+
+        Args:
+            group: Process-data group. Defaults to group 0.
+        """
+        return self._get_expected_wkc(group)
     
     def _get_dc_time(self):
         """DC time in ns required to synchronize the EtherCAT cycle with SYNC0 cycles.
@@ -898,6 +937,7 @@ cdef class CdefSlave:
     config_func = property(_get_PO2SOconfig, _set_PO2SOconfig)
     setup_func = property(_get_PO2SOconfigEx, _set_PO2SOconfigEx)
     state = property(_get_state, _set_state)
+    group = property(_get_group, _set_group)
     input = property(_get_input)
     output = property(_get_output, _set_output)
     al_status = property(_get_al_status)
@@ -909,6 +949,23 @@ cdef class CdefSlave:
         self._cd = _CallbackData()
         self._cd.slave = self
         self._emcy_callbacks = []
+
+    def _get_group(self):
+        """Return the SOEM process-data group assigned to this slave."""
+        return self._ec_slave.group
+
+    def _set_group(self, group):
+        """Assign this slave to a process-data group before mapping PDOs.
+
+        Args:
+            group: Process-data group index.
+
+        Raises:
+            ValueError: If the group index is outside PySOEM's configured range.
+        """
+        group = self._master._validate_group(group)
+        with self._master._operation_context():
+            self._ec_slave.group = group
 
     def dc_sync(self, act, sync0_cycle_time, sync0_shift_time=0, sync1_cycle_time=None):
         """Activate or deactivate SYNC pulses at the slave.
