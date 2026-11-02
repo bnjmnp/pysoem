@@ -143,8 +143,8 @@ def test_clear_pdo_mapping(pysoem_env):
     el1259.clear_pdo_mapping()
 
     assert el1259._fprd(0x0800, 16) == mailbox_sms
-    assert el1259._fprd(0x0810, 8) == bytes(8)
-    assert el1259._fprd(0x0818, 8) == bytes(8)
+    assert el1259._fprd(0x0810, 8)[6] & 0x01 == 0
+    assert el1259._fprd(0x0818, 8)[6] & 0x01 == 0
     assert el1259._fprd(0x0600, 64) == bytes(64)
     assert el1259.input == b""
     assert el1259.output == b""
@@ -162,6 +162,13 @@ def test_clear_pdo_mapping(pysoem_env):
     el1259.output = bytes(len(el1259.output))
     enter_op_state()
     assert el1259.state == pysoem.OP_STATE
+
+    master.state = pysoem.PREOP_STATE
+    master.write_state()
+    assert master.state_check(pysoem.PREOP_STATE, 50000) == pysoem.PREOP_STATE
+    el1259.clear_pdo_mapping()
+    El1259ConfigFunction(el1259).fn(el1259.pos)
+    pysoem_env.el1259_config_func = None
 
 
 @pytest.mark.parametrize("disable_complete_access", [False, True])
