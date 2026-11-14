@@ -46,6 +46,7 @@ STATE_ERROR = cpysoem.EC_STATE_ERROR
 ECT_REG_WD_DIV = 0x0400
 ECT_REG_WD_TIME_PDI = 0x0410
 ECT_REG_WD_TIME_PROCESSDATA = 0x0420
+ECT_REG_FMMU0 = 0x0600
 ECT_REG_SM0 = 0x0800
 ECT_REG_SM1 = ECT_REG_SM0 + 0x08
 
@@ -1176,6 +1177,48 @@ cdef class CdefSlave:
         """
         with self._master._operation_context():
             return cpysoem.ecx_reconfig_slave(self._ecx_contextt, self._pos, timeout)
+
+    def clear_pdo_mapping(self, timeout=2000):
+        """Clear this slave's PDO SyncManagers and FMMUs while preserving mailbox SMs.
+
+        The slave must be in INIT or PREOP. Cached SyncManager descriptors are retained so
+        ``Master.config_map()`` can restore the PDO mapping later.
+
+        :param timeout: timeout for each register write, in microseconds
+        :raises RuntimeError: if the slave is not in INIT or PREOP
+        :raises WkcError: if a register write fails
+        """
+        with self._master._operation_context():
+            cpysoem.ecx_readstate(self._ecx_contextt)
+            state = self._ec_slave.state & 0x0F
+            if state not in (cpysoem.EC_STATE_INIT, cpysoem.EC_STATE_PRE_OP):
+                raise RuntimeError("Slave must be in INIT or PREOP state to clear its PDO mapping.")
+
+            sm_size = sizeof(cpysoem.ec_smt)
+            for sm_index in range(cpysoem.EC_MAXSM):
+                if self._ec_slave.SMtype[sm_index] in (3, 4):
+                    self._fpwr(
+                        ECT_REG_SM0 + sm_index * sm_size,
+                        bytes(sm_size),
+                        timeout,
+                    )
+
+            fmmu_size = sizeof(cpysoem.ec_fmmut)
+            for fmmu_index in range(cpysoem.EC_MAXFMMU):
+                self._fpwr(
+                    ECT_REG_FMMU0 + fmmu_index * fmmu_size,
+                    bytes(fmmu_size),
+                    timeout,
+                )
+                memset(&self._ec_slave.FMMU[fmmu_index], 0, fmmu_size)
+
+            self._ec_slave.FMMUunused = 0
+            self._ec_slave.inputs = NULL
+            self._ec_slave.outputs = NULL
+            self._ec_slave.Ibytes = 0
+            self._ec_slave.Obytes = 0
+            self._ec_slave.Istartbit = 0
+            self._ec_slave.Ostartbit = 0
         
     def recover(self, timeout=500):
         """Recover slave.
@@ -1630,18 +1673,24 @@ cdef class CdefSlave:
         self._ec_slave.state = value
 
     def _get_input(self):
+        if self._ec_slave.inputs == NULL:
+            return b""
         num_bytes = self._ec_slave.Ibytes
         if (self._ec_slave.Ibytes == 0 and self._ec_slave.Ibits > 0):
             num_bytes = 1
         return PyBytes_FromStringAndSize(<char*>self._ec_slave.inputs, num_bytes)
 
     def _get_output(self):
+        if self._ec_slave.outputs == NULL:
+            return b""
         num_bytes = self._ec_slave.Obytes
         if (self._ec_slave.Obytes == 0 and self._ec_slave.Obits > 0):
             num_bytes = 1
         return PyBytes_FromStringAndSize(<char*>self._ec_slave.outputs, num_bytes)
 
     def _set_output(self, bytes value):
+        if self._ec_slave.outputs == NULL:
+            raise RuntimeError("PDO mapping is not configured for this slave.")
         memcpy(<char*>self._ec_slave.outputs, <char*>value, len(value))
     
     def _get_al_status(self):
