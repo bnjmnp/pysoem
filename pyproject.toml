@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 # Limit the created wheels for windows to AMD64.
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
+repair-wheel-command = ""
 
 [tool.ruff]
 line-length = 88
