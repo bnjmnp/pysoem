@@ -152,7 +152,43 @@ def test_clear_pdo_mapping(pysoem_env):
         el1259.output = bytes(1)
 
     pysoem_env.el1259_config_func = El1259ConfigFunction(
-        el1259, rx_map_obj=[0x1603], tx_map_obj=[0x1A00]
+        el1259,
+        rx_map_obj=[
+            0x1602,
+            0x1606,
+            0x160A,
+            0x160E,
+            0x1612,
+            0x1616,
+            0x161A,
+            0x161E,
+            0x1620,
+            0x1621,
+            0x1622,
+            0x1623,
+            0x1624,
+            0x1625,
+            0x1626,
+            0x1627,
+        ],
+        tx_map_obj=[
+            0x1A00,
+            0x1A01,
+            0x1A02,
+            0x1A03,
+            0x1A04,
+            0x1A05,
+            0x1A06,
+            0x1A07,
+            0x1A08,
+            0x1A0C,
+            0x1A13,
+            0x1A17,
+            0x1A1B,
+            0x1A1F,
+            0x1A23,
+            0x1A27,
+        ],
     ).fn
     pysoem_env.config_map()
     assert any(el1259._fprd(0x0600, 64))
@@ -167,7 +203,7 @@ def test_clear_pdo_mapping(pysoem_env):
     master.write_state()
     assert master.state_check(pysoem.PREOP_STATE, 50000) == pysoem.PREOP_STATE
     el1259.clear_pdo_mapping()
-    El1259ConfigFunction(el1259).fn(el1259.pos)
+    El1259ConfigFunction(el1259).fn(2)
     pysoem_env.el1259_config_func = None
 
 
