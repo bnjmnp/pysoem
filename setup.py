@@ -96,7 +96,13 @@ extensions = [
 
 if USE_CYTHON:
     from Cython.Build import cythonize
-    extensions = cythonize(extensions, compiler_directives={"language_level": "2"})
+    extensions = cythonize(
+        extensions, 
+        compiler_directives={
+            "language_level": "2",
+            "freethreading_compatible": True,
+        }
+    )
 
 setup(name='pysoem',
       version=find_version("src", "pysoem", "__init__.py"),
