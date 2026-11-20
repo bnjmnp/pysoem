@@ -711,6 +711,8 @@ cdef class CdefMaster:
 
         Args:
             group: Process-data group. Defaults to group 0.
+
+        .. versionadded:: 1.1.14
         """
         return self._get_expected_wkc(group)
     
@@ -1187,6 +1189,8 @@ cdef class CdefSlave:
         :param timeout: timeout for each register write, in microseconds
         :raises RuntimeError: if the slave is not in INIT or PREOP
         :raises WkcError: if a register write fails
+        
+        .. versionadded:: 1.1.14
         """
         with self._master._operation_context():
             cpysoem.ecx_readstate(self._ecx_contextt)

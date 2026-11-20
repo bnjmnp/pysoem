@@ -76,6 +76,14 @@ Please follow `PEP 8 <https://peps.python.org/pep-0008/>`_ for Python code style
 Changes
 -------
 
+v1.1.14
+^^^^^^^
+* Adds PDO group support and the ``get_expected_wkc()`` function. 
+* Adds ``clear_pdo_mapping()`` to allow reconfiguring PDO mappings on individual devices.
+* Fixes a potential race condition in ``close()``.
+* Improves FoE error handling.
+* Binary wheels are now also available for Python 3.15.
+
 v1.1.13
 ^^^^^^^
 * Fixes single access to object directory property ``obj_access``.
